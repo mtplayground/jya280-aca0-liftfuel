@@ -17,7 +17,6 @@ export type MainTabParamList = {
 
 export type AppStackParamList = {
   MainTabs: undefined;
-  MealPhotoCapture: undefined;
   MealDetail: { mealId: string };
   Profile: undefined;
 };
