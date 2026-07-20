@@ -152,3 +152,38 @@ export type MealPhotoEstimate = {
 export type MealPhotoEstimateResponse = {
   estimate: MealPhotoEstimate;
 };
+
+export type FoodItem = {
+  id: string;
+  name: string;
+  brand: string | null;
+  servingQuantity: number;
+  servingUnit: string;
+  caloriesKcal: number;
+  proteinGrams: number;
+  carbsGrams: number;
+  fatGrams: number;
+};
+
+export type FoodSearchResponse = {
+  items: FoodItem[];
+};
+
+export type FoodEntryInput = {
+  caloriesKcal: number;
+  carbsGrams: number;
+  consumedAt: string;
+  fatGrams: number;
+  logDate: string;
+  mealType: MealType;
+  name: string;
+  notes: string | null;
+  proteinGrams: number;
+  quantityUnit: string;
+  quantityValue: number;
+  source: FoodEntrySource;
+};
+
+export type FoodEntryResponse = {
+  entry: FoodEntry;
+};
