@@ -11,6 +11,12 @@ export type AppConfig = {
   host: string;
   isProduction: boolean;
   nodeEnv: string;
+  objectStorageAccessKeyId?: string;
+  objectStorageBucket?: string;
+  objectStorageEndpoint?: string;
+  objectStoragePrefix?: string;
+  objectStorageRegion?: string;
+  objectStorageSecretAccessKey?: string;
   port: number;
   selfUrl?: string;
 };
@@ -64,6 +70,12 @@ export function loadConfig(env: Env = process.env): AppConfig {
     host: readOptionalString(env, 'HOST') ?? '0.0.0.0',
     isProduction: nodeEnv === 'production',
     nodeEnv,
+    objectStorageAccessKeyId: readOptionalString(env, 'OBJECT_STORAGE_ACCESS_KEY_ID'),
+    objectStorageBucket: readOptionalString(env, 'OBJECT_STORAGE_BUCKET'),
+    objectStorageEndpoint: readOptionalString(env, 'OBJECT_STORAGE_ENDPOINT'),
+    objectStoragePrefix: readOptionalString(env, 'OBJECT_STORAGE_PREFIX'),
+    objectStorageRegion: readOptionalString(env, 'OBJECT_STORAGE_REGION'),
+    objectStorageSecretAccessKey: readOptionalString(env, 'OBJECT_STORAGE_SECRET_ACCESS_KEY'),
     port: readInteger(env, 'PORT', 8080),
     selfUrl: readOptionalString(env, 'SELF_URL')
   };

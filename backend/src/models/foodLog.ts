@@ -27,6 +27,10 @@ export type FoodEntry = {
   consumedAt: Date;
   source: FoodEntrySource;
   notes: string | null;
+  photoByteSize: number | null;
+  photoContentType: string | null;
+  photoObjectKey: string | null;
+  photoUploadedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -43,4 +47,11 @@ export type FoodEntryInput = {
   consumedAt: Date;
   source: FoodEntrySource;
   notes?: string | null;
+};
+
+export type FoodEntryPhotoInput = {
+  byteSize: number;
+  contentType: string;
+  objectKey: string;
+  uploadedAt: Date;
 };

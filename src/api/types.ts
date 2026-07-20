@@ -101,3 +101,38 @@ export type ProfileInput = {
 export type ProfileResponse = {
   profile: UserProfile | null;
 };
+
+export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+export type FoodEntrySource = 'photo_estimate' | 'manual';
+
+export type FoodEntry = {
+  id: string;
+  accountId: string;
+  foodLogDayId: string;
+  name: string;
+  caloriesKcal: number;
+  proteinGrams: number;
+  carbsGrams: number;
+  fatGrams: number;
+  quantityValue: number;
+  quantityUnit: string;
+  mealType: MealType;
+  consumedAt: string;
+  source: FoodEntrySource;
+  notes: string | null;
+  photoByteSize: number | null;
+  photoContentType: string | null;
+  photoObjectKey: string | null;
+  photoUploadedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type MealPhotoUploadResponse = {
+  entry: FoodEntry;
+  photo: {
+    byteSize: number;
+    contentType: string;
+    objectKey: string;
+  };
+};

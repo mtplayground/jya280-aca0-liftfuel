@@ -1,6 +1,6 @@
 import type { Pool, PoolClient } from 'pg';
 
-import type { FoodEntry, FoodEntryInput, FoodLogDay } from '../models';
+import type { FoodEntry, FoodEntryInput, FoodEntryPhotoInput, FoodLogDay } from '../models';
 
 type Queryable = Pool | PoolClient;
 
@@ -27,6 +27,10 @@ type FoodEntryRow = {
   consumed_at: Date;
   source: FoodEntry['source'];
   notes: string | null;
+  photo_byte_size: number | null;
+  photo_content_type: string | null;
+  photo_object_key: string | null;
+  photo_uploaded_at: Date | null;
   created_at: Date;
   updated_at: Date;
 };
@@ -84,6 +88,15 @@ export class FoodLogRepository {
     return result.rows.map(mapFoodEntry);
   }
 
+  async findEntryById(accountId: string, foodEntryId: string): Promise<FoodEntry | null> {
+    const result = await this.db.query<FoodEntryRow>(
+      'SELECT * FROM food_entries WHERE account_id = $1 AND id = $2',
+      [accountId, foodEntryId]
+    );
+
+    return result.rows[0] ? mapFoodEntry(result.rows[0]) : null;
+  }
+
   async createEntry(
     accountId: string,
     foodLogDayId: string,
@@ -133,6 +146,40 @@ export class FoodLogRepository {
 
     return mapFoodEntry(row);
   }
+
+  async attachPhoto(
+    accountId: string,
+    foodEntryId: string,
+    input: FoodEntryPhotoInput
+  ): Promise<FoodEntry> {
+    const result = await this.db.query<FoodEntryRow>(
+      `
+        UPDATE food_entries
+        SET
+          photo_object_key = $3,
+          photo_content_type = $4,
+          photo_byte_size = $5,
+          photo_uploaded_at = $6
+        WHERE account_id = $1 AND id = $2
+        RETURNING *
+      `,
+      [
+        accountId,
+        foodEntryId,
+        input.objectKey,
+        input.contentType,
+        input.byteSize,
+        input.uploadedAt
+      ]
+    );
+
+    const row = result.rows[0];
+    if (!row) {
+      throw new Error('Expected food entry photo attach to return a row');
+    }
+
+    return mapFoodEntry(row);
+  }
 }
 
 function mapFoodLogDay(row: FoodLogDayRow): FoodLogDay {
@@ -161,6 +208,10 @@ function mapFoodEntry(row: FoodEntryRow): FoodEntry {
     consumedAt: row.consumed_at,
     source: row.source,
     notes: row.notes,
+    photoByteSize: row.photo_byte_size,
+    photoContentType: row.photo_content_type,
+    photoObjectKey: row.photo_object_key,
+    photoUploadedAt: row.photo_uploaded_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
