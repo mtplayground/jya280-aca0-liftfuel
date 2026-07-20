@@ -5,6 +5,7 @@ import { Pressable, StyleSheet } from 'react-native';
 
 import { AppText } from '../../components/ui';
 import { LogMealScreen } from '../../features/foodLog';
+import { HomeScreen } from '../../features/home';
 import { PlanScreen } from '../../features/plan';
 import { PlaceholderScreen } from '../../screens/PlaceholderScreen';
 import { colors, spacing } from '../../theme';
@@ -36,13 +37,8 @@ export function AppTabs() {
         headerRight: () => <ProfileHeaderButton />
       }}
     >
-      <Tab.Screen name="Home">
-        {() => (
-          <PlaceholderScreen
-            title="Home"
-            subtitle="Daily status, streaks, and quick actions will land here as the core features are built."
-          />
-        )}
+      <Tab.Screen name="Home" options={{ title: 'Home' }}>
+        {() => <HomeScreen />}
       </Tab.Screen>
       <Tab.Screen name="Log" options={{ title: 'Log meal' }}>
         {() => <LogMealScreen />}
