@@ -9,6 +9,7 @@ import { errorHandler } from './middleware/errorHandler';
 import { createAuthRouter } from './routes/auth';
 import { createFoodLogRouter } from './routes/foodLog';
 import { createHealthRouter } from './routes/health';
+import { createPlanRouter } from './routes/plan';
 import { createProfileRouter } from './routes/profile';
 
 function collectAllowedOrigins(config: AppConfig): Set<string> {
@@ -50,6 +51,7 @@ export function createApp(config: AppConfig, pool: Pool) {
 
   app.use(config.apiBasePath, createAuthRouter(config, pool));
   app.use(config.apiBasePath, createProfileRouter(config, pool));
+  app.use(config.apiBasePath, createPlanRouter(config, pool));
   app.use(config.apiBasePath, createFoodLogRouter(config, pool));
   app.use(config.apiBasePath, createHealthRouter(pool));
 

@@ -102,6 +102,36 @@ export type ProfileResponse = {
   profile: UserProfile | null;
 };
 
+export type MacroTargets = {
+  caloriesKcal: number;
+  carbsGrams: number;
+  fatGrams: number;
+  proteinGrams: number;
+};
+
+export type PlanTargetDay = MacroTargets & {
+  dayType: 'training' | 'rest';
+};
+
+export type NutritionPlan = {
+  baseline: {
+    activityMultiplier: number;
+    bmrKcal: number;
+    maintenanceCaloriesKcal: number;
+    targetAverageCaloriesKcal: number;
+  };
+  goal: Goal;
+  restDay: PlanTargetDay;
+  restDaysPerWeek: number;
+  trainingDay: PlanTargetDay;
+  trainingDaysPerWeek: number;
+  trainingSplit: TrainingSplit;
+};
+
+export type PlanResponse = {
+  plan: NutritionPlan;
+};
+
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 export type FoodEntrySource = 'photo_estimate' | 'manual';
 
