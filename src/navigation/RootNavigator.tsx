@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useMemo, useState } from 'react';
 
 import { PlaceholderScreen } from '../screens/PlaceholderScreen';
+import { colors, navigationTheme } from '../theme';
 import { AppTabs } from './tabs/AppTabs';
 import type {
   AppStackParamList,
@@ -17,7 +18,7 @@ const OnboardingStack = createNativeStackNavigator<OnboardingStackParamList>();
 
 function AuthNavigator({ onSignIn }: { onSignIn: () => void }) {
   return (
-    <AuthStack.Navigator>
+    <AuthStack.Navigator screenOptions={stackScreenOptions}>
       <AuthStack.Screen name="SignIn" options={{ title: 'Sign in' }}>
         {() => (
           <PlaceholderScreen
@@ -34,7 +35,7 @@ function AuthNavigator({ onSignIn }: { onSignIn: () => void }) {
 
 function OnboardingNavigator({ onComplete }: { onComplete: () => void }) {
   return (
-    <OnboardingStack.Navigator>
+    <OnboardingStack.Navigator screenOptions={stackScreenOptions}>
       <OnboardingStack.Screen name="Welcome" options={{ title: 'Welcome' }}>
         {({ navigation }) => (
           <PlaceholderScreen
@@ -61,7 +62,7 @@ function OnboardingNavigator({ onComplete }: { onComplete: () => void }) {
 
 function AppNavigator() {
   return (
-    <AppStack.Navigator>
+    <AppStack.Navigator screenOptions={stackScreenOptions}>
       <AppStack.Screen
         name="MainTabs"
         component={AppTabs}
@@ -100,7 +101,7 @@ export function RootNavigator() {
   }, [session]);
 
   return (
-    <NavigationContainer key={routeKey}>
+    <NavigationContainer key={routeKey} theme={navigationTheme}>
       {!session.hasAccount ? (
         <AuthNavigator
           onSignIn={() =>
@@ -125,3 +126,15 @@ export function RootNavigator() {
     </NavigationContainer>
   );
 }
+
+const stackScreenOptions = {
+  headerShadowVisible: false,
+  headerStyle: {
+    backgroundColor: colors.surface
+  },
+  headerTintColor: colors.text,
+  headerTitleStyle: {
+    color: colors.text,
+    fontWeight: '700' as const
+  }
+};
