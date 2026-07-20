@@ -294,3 +294,40 @@ export type DailyCheckInResponse = {
 export type StreakSummaryResponse = {
   streaks: StreakSummary;
 };
+
+export type PerformanceMetric = {
+  name: string;
+  notes: string | null;
+  unit: string;
+  value: number;
+};
+
+export type ProgressEntryInput = {
+  bodyFatIsEstimate?: boolean;
+  bodyFatPercent?: number | null;
+  entryDate: string;
+  notes?: string | null;
+  performanceMetrics?: PerformanceMetric[];
+  weightKg?: number | null;
+};
+
+export type ProgressEntry = {
+  id: string;
+  accountId: string;
+  bodyFatIsEstimate: boolean;
+  bodyFatPercent: number | null;
+  createdAt: string;
+  entryDate: string;
+  notes: string | null;
+  performanceMetrics: PerformanceMetric[];
+  updatedAt: string;
+  weightKg: number | null;
+};
+
+export type ProgressEntryResponse = {
+  entry: ProgressEntry | null;
+};
+
+export type ProgressEntriesResponse = {
+  entries: ProgressEntry[];
+};
