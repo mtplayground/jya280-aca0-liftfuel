@@ -11,7 +11,7 @@ import {
   SignUpScreen
 } from '../features/auth';
 import { OnboardingFlowScreen } from '../features/onboarding';
-import { getProfile } from '../features/profile';
+import { getProfile, ProfileScreen } from '../features/profile';
 import { PlaceholderScreen } from '../screens/PlaceholderScreen';
 import { colors, navigationTheme, spacing } from '../theme';
 import { AppTabs } from './tabs/AppTabs';
@@ -85,12 +85,7 @@ function AppNavigator() {
         )}
       </AppStack.Screen>
       <AppStack.Screen name="Profile" options={{ title: 'Profile' }}>
-        {() => (
-          <PlaceholderScreen
-            title="Profile"
-            subtitle="Editable profile details will be added in the profile screen issue."
-          />
-        )}
+        {() => <ProfileScreen />}
       </AppStack.Screen>
     </AppStack.Navigator>
   );
