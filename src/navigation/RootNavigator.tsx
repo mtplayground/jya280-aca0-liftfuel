@@ -10,7 +10,6 @@ import {
   SignInScreen,
   SignUpScreen
 } from '../features/auth';
-import { MealPhotoCaptureScreen } from '../features/foodLog';
 import { OnboardingFlowScreen } from '../features/onboarding';
 import { getProfile, ProfileScreen } from '../features/profile';
 import { PlaceholderScreen } from '../screens/PlaceholderScreen';
@@ -84,9 +83,6 @@ function AppNavigator() {
             subtitle="Meal inspection and editing will be added after the food log model exists."
           />
         )}
-      </AppStack.Screen>
-      <AppStack.Screen name="MealPhotoCapture" options={{ title: 'Meal photo' }}>
-        {() => <MealPhotoCaptureScreen />}
       </AppStack.Screen>
       <AppStack.Screen name="Profile" options={{ title: 'Profile' }}>
         {() => <ProfileScreen />}
