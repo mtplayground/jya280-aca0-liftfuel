@@ -1,6 +1,7 @@
 import type { Pool, PoolClient } from 'pg';
 
 import type {
+  DailyFoodAggregation,
   FoodEntry,
   FoodEntryInput,
   FoodEntryPhotoInput,
@@ -55,6 +56,14 @@ type FoodItemRow = {
   updated_at: Date;
 };
 
+type DailyFoodAggregationRow = {
+  entry_count: string;
+  calories_kcal: string;
+  protein_g: string;
+  carbs_g: string;
+  fat_g: string;
+};
+
 export class FoodLogRepository {
   constructor(private readonly db: Queryable) {}
 
@@ -106,6 +115,39 @@ export class FoodLogRepository {
     );
 
     return result.rows.map(mapFoodEntry);
+  }
+
+  async aggregateDay(accountId: string, logDate: string): Promise<DailyFoodAggregation> {
+    const result = await this.db.query<DailyFoodAggregationRow>(
+      `
+        SELECT
+          COUNT(fe.id) AS entry_count,
+          COALESCE(SUM(fe.calories_kcal), 0) AS calories_kcal,
+          COALESCE(SUM(fe.protein_g), 0) AS protein_g,
+          COALESCE(SUM(fe.carbs_g), 0) AS carbs_g,
+          COALESCE(SUM(fe.fat_g), 0) AS fat_g
+        FROM food_log_days fld
+        LEFT JOIN food_entries fe
+          ON fe.food_log_day_id = fld.id
+          AND fe.account_id = fld.account_id
+        WHERE fld.account_id = $1
+          AND fld.log_date = $2
+      `,
+      [accountId, logDate]
+    );
+
+    const row = result.rows[0];
+
+    return {
+      date: logDate,
+      entryCount: row ? Number(row.entry_count) : 0,
+      totals: {
+        caloriesKcal: row ? Number(row.calories_kcal) : 0,
+        carbsGrams: row ? Number(row.carbs_g) : 0,
+        fatGrams: row ? Number(row.fat_g) : 0,
+        proteinGrams: row ? Number(row.protein_g) : 0
+      }
+    };
   }
 
   async findEntryById(accountId: string, foodEntryId: string): Promise<FoodEntry | null> {

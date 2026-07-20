@@ -231,3 +231,28 @@ export type FoodEntryInput = {
 export type FoodEntryResponse = {
   entry: FoodEntry;
 };
+
+export type DailyTotalsStatus = {
+  label: string;
+  state: 'below_target' | 'on_track' | 'over_target';
+};
+
+export type DailyTotalsResponse = {
+  date: string;
+  dayType: 'training' | 'rest';
+  entryCount: number;
+  progress: {
+    calories: number;
+    carbs: number;
+    fat: number;
+    protein: number;
+  };
+  remaining: MacroTargets;
+  splitFocus: string | null;
+  status: DailyTotalsStatus;
+  target: PlanTargetDay;
+  totals: MacroTargets;
+  trainingDayIndex: number | null;
+  weekday: number;
+  weekdayName: string;
+};

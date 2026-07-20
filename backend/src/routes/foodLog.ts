@@ -6,12 +6,23 @@ import type { Pool } from 'pg';
 import { resolveAuthenticatedSession } from '../auth';
 import type { AppConfig } from '../config';
 import { HttpError } from '../errors';
-import type { FoodEntry, FoodItem } from '../models';
-import { AccountRepository, FoodLogRepository } from '../repositories';
+import type {
+  DailyFoodAggregation,
+  DailyFoodTotals,
+  FoodEntry,
+  FoodItem,
+  MacroTargets,
+  PlanTargetDay,
+  TrainingDayResolution
+} from '../models';
+import { AccountRepository, FoodLogRepository, ProfileRepository } from '../repositories';
 import {
+  calculateNutritionPlan,
   createObjectStorageService,
+  formatWeekday,
   hasObjectStorageConfig,
-  MealPhotoEstimationService
+  MealPhotoEstimationService,
+  resolveTrainingDay
 } from '../services';
 import { readSearchQuery, validateFoodEntryPayload } from '../validation/foodLogValidation';
 
@@ -52,7 +63,31 @@ export function createFoodLogRouter(config: AppConfig, pool: Pool): Router {
   const router = createRouter();
   const accounts = new AccountRepository(pool);
   const foodLog = new FoodLogRepository(pool);
+  const profiles = new ProfileRepository(pool);
   const estimator = new MealPhotoEstimationService(config);
+
+  router.get('/daily-totals', async (req, res, next) => {
+    try {
+      const session = await resolveAuthenticatedSession(req, config, accounts);
+      if (!session) {
+        throw new HttpError(401, 'UNAUTHENTICATED', 'Sign in is required.');
+      }
+
+      const profile = await profiles.findByAccountId(session.account.id);
+      if (!profile) {
+        throw new HttpError(404, 'PROFILE_REQUIRED', 'Complete the profile before calculating daily totals.');
+      }
+
+      const date = readLogDate(req.query.date);
+      const plan = calculateNutritionPlan(profile);
+      const day = resolveTrainingDay(plan, date);
+      const aggregation = await foodLog.aggregateDay(session.account.id, date);
+
+      res.status(200).json(serializeDailyTotals(aggregation, day));
+    } catch (error) {
+      next(error);
+    }
+  });
 
   router.get('/foods/search', async (req, res, next) => {
     try {
@@ -216,6 +251,119 @@ function readRouteParam(value: string | string[] | undefined, name: string): str
   }
 
   return value;
+}
+
+function readLogDate(value: unknown): string {
+  if (value === undefined) {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw new HttpError(400, 'LOG_DATE_INVALID', 'Date must be in YYYY-MM-DD format.');
+  }
+
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value) {
+    throw new HttpError(400, 'LOG_DATE_INVALID', 'Date must be a valid calendar date.');
+  }
+
+  return value;
+}
+
+function serializeDailyTotals(aggregation: DailyFoodAggregation, day: TrainingDayResolution) {
+  const remaining = calculateRemaining(aggregation.totals, day.target);
+  const progress = calculateProgress(aggregation.totals, day.target);
+  const status = calculateOnTrackStatus(aggregation.totals, day.target);
+
+  return {
+    date: aggregation.date,
+    dayType: day.dayType,
+    entryCount: aggregation.entryCount,
+    progress,
+    remaining,
+    splitFocus: day.splitFocus,
+    status,
+    target: serializePlanTargetDay(day.target),
+    totals: serializeMacroTotals(aggregation.totals),
+    trainingDayIndex: day.trainingDayIndex,
+    weekday: day.weekday,
+    weekdayName: formatWeekday(day.weekday)
+  };
+}
+
+function calculateRemaining(totals: DailyFoodTotals, target: MacroTargets): DailyFoodTotals {
+  return {
+    caloriesKcal: round(target.caloriesKcal - totals.caloriesKcal, 0),
+    carbsGrams: round(target.carbsGrams - totals.carbsGrams, 1),
+    fatGrams: round(target.fatGrams - totals.fatGrams, 1),
+    proteinGrams: round(target.proteinGrams - totals.proteinGrams, 1)
+  };
+}
+
+function calculateProgress(totals: DailyFoodTotals, target: MacroTargets) {
+  return {
+    calories: calculateRatio(totals.caloriesKcal, target.caloriesKcal),
+    carbs: calculateRatio(totals.carbsGrams, target.carbsGrams),
+    fat: calculateRatio(totals.fatGrams, target.fatGrams),
+    protein: calculateRatio(totals.proteinGrams, target.proteinGrams)
+  };
+}
+
+function calculateOnTrackStatus(totals: DailyFoodTotals, target: MacroTargets) {
+  const calorieRatio = calculateRatio(totals.caloriesKcal, target.caloriesKcal);
+  const macroRatios = [
+    calculateRatio(totals.proteinGrams, target.proteinGrams),
+    calculateRatio(totals.carbsGrams, target.carbsGrams),
+    calculateRatio(totals.fatGrams, target.fatGrams)
+  ];
+
+  if (calorieRatio > 1.05 || macroRatios.some((ratio) => ratio > 1.15)) {
+    return {
+      label: 'Over target',
+      state: 'over_target'
+    };
+  }
+
+  if (calorieRatio >= 0.9 && macroRatios.every((ratio) => ratio >= 0.8 && ratio <= 1.15)) {
+    return {
+      label: 'On track',
+      state: 'on_track'
+    };
+  }
+
+  return {
+    label: 'Below target',
+    state: 'below_target'
+  };
+}
+
+function calculateRatio(total: number, target: number): number {
+  if (target <= 0) {
+    return total > 0 ? 1 : 0;
+  }
+
+  return round(total / target, 3);
+}
+
+function serializePlanTargetDay(target: PlanTargetDay) {
+  return {
+    dayType: target.dayType,
+    ...serializeMacroTotals(target)
+  };
+}
+
+function serializeMacroTotals(target: MacroTargets) {
+  return {
+    caloriesKcal: round(target.caloriesKcal, 0),
+    carbsGrams: round(target.carbsGrams, 1),
+    fatGrams: round(target.fatGrams, 1),
+    proteinGrams: round(target.proteinGrams, 1)
+  };
+}
+
+function round(value: number, precision: number): number {
+  const factor = 10 ** precision;
+  return Math.round(value * factor) / factor;
 }
 
 function serializeFoodEntry(entry: FoodEntry) {
