@@ -25,3 +25,12 @@ export type NutritionPlan = {
   trainingDaysPerWeek: number;
   trainingSplit: TrainingSplit;
 };
+
+export type TrainingDayResolution = {
+  date: string;
+  dayType: 'training' | 'rest';
+  splitFocus: string | null;
+  target: PlanTargetDay;
+  trainingDayIndex: number | null;
+  weekday: number;
+};

@@ -132,6 +132,20 @@ export type PlanResponse = {
   plan: NutritionPlan;
 };
 
+export type TrainingDayResolution = {
+  date: string;
+  dayType: 'training' | 'rest';
+  splitFocus: string | null;
+  target: PlanTargetDay;
+  trainingDayIndex: number | null;
+  weekday: number;
+  weekdayName: string;
+};
+
+export type PlanDayResponse = {
+  day: TrainingDayResolution;
+};
+
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 export type FoodEntrySource = 'photo_estimate' | 'manual';
 
