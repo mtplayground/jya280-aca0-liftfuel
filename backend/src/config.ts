@@ -1,8 +1,13 @@
 export type AppConfig = {
   apiBasePath: string;
   allowedCorsOrigin?: string;
+  authAppToken?: string;
+  authJwksUrl?: string;
+  authUrl?: string;
   databaseMaxConnections: number;
   databaseUrl: string;
+  emailAppToken?: string;
+  emailUrl?: string;
   host: string;
   isProduction: boolean;
   nodeEnv: string;
@@ -49,8 +54,13 @@ export function loadConfig(env: Env = process.env): AppConfig {
   return {
     apiBasePath: normalizeBasePath(readOptionalString(env, 'API_BASE_PATH') ?? '/api'),
     allowedCorsOrigin: readOptionalString(env, 'ALLOWED_CORS_ORIGIN'),
+    authAppToken: readOptionalString(env, 'MCTAI_AUTH_APP_TOKEN'),
+    authJwksUrl: readOptionalString(env, 'MCTAI_AUTH_JWKS_URL'),
+    authUrl: readOptionalString(env, 'MCTAI_AUTH_URL'),
     databaseMaxConnections: readInteger(env, 'DATABASE_MAX_CONNECTIONS', 5),
     databaseUrl: readRequiredString(env, 'DATABASE_URL'),
+    emailAppToken: readOptionalString(env, 'MCTAI_EMAIL_APP_TOKEN'),
+    emailUrl: readOptionalString(env, 'MCTAI_EMAIL_URL'),
     host: readOptionalString(env, 'HOST') ?? '0.0.0.0',
     isProduction: nodeEnv === 'production',
     nodeEnv,

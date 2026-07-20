@@ -73,6 +73,7 @@ export class ApiClient {
       const response = await this.fetchImpl(`${this.baseUrl}${normalizePath(path)}`, {
         ...options,
         body: serializeBody(options.body),
+        credentials: options.credentials ?? 'include',
         headers: buildHeaders(options),
         signal: controller.signal
       });

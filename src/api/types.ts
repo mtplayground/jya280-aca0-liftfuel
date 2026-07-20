@@ -26,3 +26,34 @@ export type HealthResponse = {
   status: 'ok' | 'degraded';
   timestamp: string;
 };
+
+export type AuthAccount = {
+  id: string;
+  authSubject: string;
+  email: string;
+  emailVerified: boolean;
+  displayName: string | null;
+  pictureUrl: string | null;
+};
+
+export type AuthSession = {
+  expiresAt: string | null;
+  id: string;
+  lastSeenAt: string;
+};
+
+export type AuthSessionResponse = {
+  account: AuthAccount;
+  isNewAccount: boolean;
+  session: AuthSession;
+};
+
+export type PasswordResetRequest = {
+  email: string;
+  returnTo?: string;
+};
+
+export type PasswordResetResponse = {
+  delivery: 'sent' | 'skipped';
+  status: 'accepted';
+};
