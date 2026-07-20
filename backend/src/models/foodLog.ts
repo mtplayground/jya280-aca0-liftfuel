@@ -69,3 +69,16 @@ export type FoodItem = {
   createdAt: Date;
   updatedAt: Date;
 };
+
+export type DailyFoodTotals = {
+  caloriesKcal: number;
+  proteinGrams: number;
+  carbsGrams: number;
+  fatGrams: number;
+};
+
+export type DailyFoodAggregation = {
+  date: string;
+  entryCount: number;
+  totals: DailyFoodTotals;
+};

@@ -1,5 +1,6 @@
 import { apiClient } from '../../api/client';
 import type {
+  DailyTotalsResponse,
   FoodEntry,
   FoodEntryInput,
   FoodEntryResponse,
@@ -23,4 +24,9 @@ export async function createFoodEntry(input: FoodEntryInput): Promise<FoodEntry>
 export async function updateFoodEntry(entryId: string, input: FoodEntryInput): Promise<FoodEntry> {
   const response = await apiClient.put<FoodEntryResponse>(`/food-entries/${entryId}`, input);
   return response.entry;
+}
+
+export async function getDailyTotals(date?: string): Promise<DailyTotalsResponse> {
+  const path = date ? `/daily-totals?date=${encodeURIComponent(date)}` : '/daily-totals';
+  return apiClient.get<DailyTotalsResponse>(path);
 }
