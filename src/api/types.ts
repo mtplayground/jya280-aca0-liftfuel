@@ -256,3 +256,41 @@ export type DailyTotalsResponse = {
   weekday: number;
   weekdayName: string;
 };
+
+export type CheckInStatusState = 'below_target' | 'on_track' | 'over_target';
+
+export type DailyCheckIn = {
+  id: string;
+  accountId: string;
+  checkedInAt: string;
+  checkInDate: string;
+  createdAt: string;
+  loggedFood: boolean;
+  onTrack: boolean;
+  onTrackState: CheckInStatusState;
+  target: MacroTargets;
+  totals: MacroTargets;
+  updatedAt: string;
+};
+
+export type StreakSummary = {
+  currentLoggingStreakDays: number;
+  currentOnTrackStreakDays: number;
+  lastCheckInDate: string | null;
+  longestLoggingStreakDays: number;
+  longestOnTrackStreakDays: number;
+  recentCheckIns: DailyCheckIn[];
+};
+
+export type DailyCheckInRequest = {
+  date?: string;
+};
+
+export type DailyCheckInResponse = {
+  checkIn: DailyCheckIn;
+  streaks: StreakSummary;
+};
+
+export type StreakSummaryResponse = {
+  streaks: StreakSummary;
+};
