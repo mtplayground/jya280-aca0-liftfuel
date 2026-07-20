@@ -10,13 +10,30 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "LiftFuel uses the camera to capture meal photos.",
+        "NSPhotoLibraryUsageDescription": "LiftFuel uses your photo library to attach meal photos."
+      }
     },
     "android": {
+      "permissions": [
+        "CAMERA",
+        "READ_MEDIA_IMAGES"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#0F172A"
       }
     },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "LiftFuel uses the camera to capture meal photos.",
+          "photosPermission": "LiftFuel uses your photo library to attach meal photos."
+        }
+      ]
+    ],
     "web": {
       "bundler": "metro",
       "output": "single"
