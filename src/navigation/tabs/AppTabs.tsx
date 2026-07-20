@@ -4,7 +4,7 @@ import type { NavigationProp } from '@react-navigation/native';
 import { Pressable, StyleSheet } from 'react-native';
 
 import { AppText } from '../../components/ui';
-import { MealPhotoCaptureScreen } from '../../features/foodLog';
+import { FoodEntryEditorScreen } from '../../features/foodLog';
 import { PlaceholderScreen } from '../../screens/PlaceholderScreen';
 import { colors, spacing } from '../../theme';
 import type { AppStackParamList, MainTabParamList } from '../types';
@@ -44,7 +44,7 @@ export function AppTabs() {
         )}
       </Tab.Screen>
       <Tab.Screen name="Log" options={{ title: 'Log meal' }}>
-        {() => <MealPhotoCaptureScreen />}
+        {() => <FoodEntryEditorScreen />}
       </Tab.Screen>
       <Tab.Screen name="Plan">
         {() => (

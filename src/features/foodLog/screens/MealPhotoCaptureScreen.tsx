@@ -5,6 +5,7 @@ import { ApiError } from '../../../api/client';
 import type { MealPhotoEstimate } from '../../../api/types';
 import { AppText, Button, Card, Input, Screen, StatRow } from '../../../components/ui';
 import { colors, spacing } from '../../../theme';
+import { createFoodEntry } from '../foodLogService';
 import {
   captureMealPhoto,
   type CapturedMealPhoto,
@@ -31,6 +32,7 @@ export function MealPhotoCaptureScreen() {
   const [success, setSuccess] = useState<string | null>(null);
   const [isEstimating, setIsEstimating] = useState(false);
   const [isPicking, setIsPicking] = useState<MealPhotoSource | null>(null);
+  const [isSavingEstimate, setIsSavingEstimate] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
   const pickPhoto = async (source: MealPhotoSource) => {
@@ -97,6 +99,33 @@ export function MealPhotoCaptureScreen() {
       setError(readErrorMessage(uploadError, 'Unable to upload the meal photo.'));
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const saveEstimate = async () => {
+    if (!estimateForm) {
+      setError('Estimate fields are required before saving.');
+      return;
+    }
+
+    const payload = estimateFormToPayload(estimateForm);
+    if (!payload.ok) {
+      setError(payload.message);
+      return;
+    }
+
+    setError(null);
+    setSuccess(null);
+    setIsSavingEstimate(true);
+
+    try {
+      const entry = await createFoodEntry(payload.input);
+      setEntryId(entry.id);
+      setSuccess(`Saved ${entry.name}.`);
+    } catch (saveError) {
+      setError(readErrorMessage(saveError, 'Unable to save the corrected estimate.'));
+    } finally {
+      setIsSavingEstimate(false);
     }
   };
 
@@ -230,6 +259,9 @@ export function MealPhotoCaptureScreen() {
                 </AppText>
               ))}
             </View>
+            <Button disabled={isSavingEstimate} onPress={saveEstimate}>
+              {isSavingEstimate ? 'Saving...' : 'Save corrected estimate'}
+            </Button>
           </Card>
         ) : null}
 
@@ -288,6 +320,72 @@ function estimateToForm(estimate: MealPhotoEstimate): EstimateFormState {
     name: estimate.name,
     proteinGrams: String(estimate.proteinGrams),
     quantityDescription: estimate.quantityDescription
+  };
+}
+
+function estimateFormToPayload(
+  form: EstimateFormState
+):
+  | {
+      input: Parameters<typeof createFoodEntry>[0];
+      ok: true;
+    }
+  | { message: string; ok: false } {
+  const name = form.name.trim();
+  const caloriesKcal = readNumber(form.caloriesKcal);
+  const proteinGrams = readNumber(form.proteinGrams);
+  const carbsGrams = readNumber(form.carbsGrams);
+  const fatGrams = readNumber(form.fatGrams);
+  const quantity = parseQuantityDescription(form.quantityDescription);
+
+  if (!name) return { message: 'Meal name is required.', ok: false };
+  if (
+    caloriesKcal === null ||
+    proteinGrams === null ||
+    carbsGrams === null ||
+    fatGrams === null
+  ) {
+    return { message: 'Calories and macros must be numbers.', ok: false };
+  }
+
+  return {
+    input: {
+      caloriesKcal,
+      carbsGrams,
+      consumedAt: new Date().toISOString(),
+      fatGrams,
+      logDate: new Date().toISOString().slice(0, 10),
+      mealType: 'lunch',
+      name,
+      notes: null,
+      proteinGrams,
+      quantityUnit: quantity.unit,
+      quantityValue: quantity.value,
+      source: 'photo_estimate'
+    },
+    ok: true
+  };
+}
+
+function readNumber(value: string): number | null {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
+function parseQuantityDescription(value: string): { unit: string; value: number } {
+  const trimmed = value.trim();
+  const match = /^(\d+(?:\.\d+)?)\s*(.*)$/.exec(trimmed);
+  if (!match) {
+    return {
+      unit: trimmed.slice(0, 40) || 'serving',
+      value: 1
+    };
+  }
+
+  const quantityValue = Number(match[1]);
+  return {
+    unit: match[2]?.trim().slice(0, 40) || 'serving',
+    value: Number.isFinite(quantityValue) && quantityValue > 0 ? quantityValue : 1
   };
 }
 

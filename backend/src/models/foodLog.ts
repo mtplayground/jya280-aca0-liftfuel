@@ -55,3 +55,17 @@ export type FoodEntryPhotoInput = {
   objectKey: string;
   uploadedAt: Date;
 };
+
+export type FoodItem = {
+  id: string;
+  name: string;
+  brand: string | null;
+  servingQuantity: number;
+  servingUnit: string;
+  caloriesKcal: number;
+  proteinGrams: number;
+  carbsGrams: number;
+  fatGrams: number;
+  createdAt: Date;
+  updatedAt: Date;
+};

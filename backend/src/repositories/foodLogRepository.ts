@@ -1,6 +1,12 @@
 import type { Pool, PoolClient } from 'pg';
 
-import type { FoodEntry, FoodEntryInput, FoodEntryPhotoInput, FoodLogDay } from '../models';
+import type {
+  FoodEntry,
+  FoodEntryInput,
+  FoodEntryPhotoInput,
+  FoodItem,
+  FoodLogDay
+} from '../models';
 
 type Queryable = Pool | PoolClient;
 
@@ -31,6 +37,20 @@ type FoodEntryRow = {
   photo_content_type: string | null;
   photo_object_key: string | null;
   photo_uploaded_at: Date | null;
+  created_at: Date;
+  updated_at: Date;
+};
+
+type FoodItemRow = {
+  id: string;
+  name: string;
+  brand: string | null;
+  serving_quantity: string;
+  serving_unit: string;
+  calories_kcal: string;
+  protein_g: string;
+  carbs_g: string;
+  fat_g: string;
   created_at: Date;
   updated_at: Date;
 };
@@ -97,6 +117,35 @@ export class FoodLogRepository {
     return result.rows[0] ? mapFoodEntry(result.rows[0]) : null;
   }
 
+  async searchFoodItems(query: string, limit = 12): Promise<FoodItem[]> {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) {
+      return [];
+    }
+
+    const result = await this.db.query<FoodItemRow>(
+      `
+        SELECT *
+        FROM food_items
+        WHERE
+          search_text ILIKE '%' || $1 || '%'
+          OR to_tsvector('simple', search_text) @@ plainto_tsquery('simple', $1)
+        ORDER BY
+          CASE
+            WHEN lower(name) = $1 THEN 0
+            WHEN lower(name) LIKE $1 || '%' THEN 1
+            WHEN search_text ILIKE '%' || $1 || '%' THEN 2
+            ELSE 3
+          END,
+          name ASC
+        LIMIT $2
+      `,
+      [normalizedQuery, limit]
+    );
+
+    return result.rows.map(mapFoodItem);
+  }
+
   async createEntry(
     accountId: string,
     foodLogDayId: string,
@@ -142,6 +191,57 @@ export class FoodLogRepository {
     const row = result.rows[0];
     if (!row) {
       throw new Error('Expected food entry insert to return a row');
+    }
+
+    return mapFoodEntry(row);
+  }
+
+  async updateEntry(
+    accountId: string,
+    foodEntryId: string,
+    foodLogDayId: string,
+    input: FoodEntryInput
+  ): Promise<FoodEntry> {
+    const result = await this.db.query<FoodEntryRow>(
+      `
+        UPDATE food_entries
+        SET
+          food_log_day_id = $3,
+          name = $4,
+          calories_kcal = $5,
+          protein_g = $6,
+          carbs_g = $7,
+          fat_g = $8,
+          quantity_value = $9,
+          quantity_unit = $10,
+          meal_type = $11,
+          consumed_at = $12,
+          source = $13,
+          notes = $14
+        WHERE account_id = $1 AND id = $2
+        RETURNING *
+      `,
+      [
+        accountId,
+        foodEntryId,
+        foodLogDayId,
+        input.name,
+        input.caloriesKcal,
+        input.proteinGrams,
+        input.carbsGrams,
+        input.fatGrams,
+        input.quantityValue,
+        input.quantityUnit,
+        input.mealType,
+        input.consumedAt,
+        input.source,
+        input.notes ?? null
+      ]
+    );
+
+    const row = result.rows[0];
+    if (!row) {
+      throw new Error('Expected food entry update to return a row');
     }
 
     return mapFoodEntry(row);
@@ -212,6 +312,22 @@ function mapFoodEntry(row: FoodEntryRow): FoodEntry {
     photoContentType: row.photo_content_type,
     photoObjectKey: row.photo_object_key,
     photoUploadedAt: row.photo_uploaded_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
+function mapFoodItem(row: FoodItemRow): FoodItem {
+  return {
+    id: row.id,
+    name: row.name,
+    brand: row.brand,
+    servingQuantity: Number(row.serving_quantity),
+    servingUnit: row.serving_unit,
+    caloriesKcal: Number(row.calories_kcal),
+    proteinGrams: Number(row.protein_g),
+    carbsGrams: Number(row.carbs_g),
+    fatGrams: Number(row.fat_g),
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };

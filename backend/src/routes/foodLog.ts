@@ -6,13 +6,14 @@ import type { Pool } from 'pg';
 import { resolveAuthenticatedSession } from '../auth';
 import type { AppConfig } from '../config';
 import { HttpError } from '../errors';
-import type { FoodEntry } from '../models';
+import type { FoodEntry, FoodItem } from '../models';
 import { AccountRepository, FoodLogRepository } from '../repositories';
 import {
   createObjectStorageService,
   hasObjectStorageConfig,
   MealPhotoEstimationService
 } from '../services';
+import { readSearchQuery, validateFoodEntryPayload } from '../validation/foodLogValidation';
 
 const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
 const allowedPhotoTypes = new Set([
@@ -52,6 +53,73 @@ export function createFoodLogRouter(config: AppConfig, pool: Pool): Router {
   const accounts = new AccountRepository(pool);
   const foodLog = new FoodLogRepository(pool);
   const estimator = new MealPhotoEstimationService(config);
+
+  router.get('/foods/search', async (req, res, next) => {
+    try {
+      const session = await resolveAuthenticatedSession(req, config, accounts);
+      if (!session) {
+        throw new HttpError(401, 'UNAUTHENTICATED', 'Sign in is required.');
+      }
+
+      const query = readSearchQuery(req.query.q);
+      const items = await foodLog.searchFoodItems(query);
+
+      res.status(200).json({
+        items: items.map(serializeFoodItem)
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post('/food-entries', async (req, res, next) => {
+    try {
+      const session = await resolveAuthenticatedSession(req, config, accounts);
+      if (!session) {
+        throw new HttpError(401, 'UNAUTHENTICATED', 'Sign in is required.');
+      }
+
+      const payload = validateFoodEntryPayload(req.body);
+      const day = await foodLog.ensureDay(session.account.id, payload.logDate);
+      const entry = await foodLog.createEntry(session.account.id, day.id, payload.input);
+
+      res.status(201).json({
+        entry: serializeFoodEntry(entry)
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.put('/food-entries/:entryId', async (req, res, next) => {
+    try {
+      const session = await resolveAuthenticatedSession(req, config, accounts);
+      if (!session) {
+        throw new HttpError(401, 'UNAUTHENTICATED', 'Sign in is required.');
+      }
+
+      const foodEntryId = readRouteParam(req.params.entryId, 'entryId');
+      const existingEntry = await foodLog.findEntryById(session.account.id, foodEntryId);
+      if (!existingEntry) {
+        throw new HttpError(404, 'FOOD_ENTRY_NOT_FOUND', 'Food entry was not found.');
+      }
+
+      const payload = validateFoodEntryPayload(req.body);
+      const day = await foodLog.ensureDay(session.account.id, payload.logDate);
+      const entry = await foodLog.updateEntry(
+        session.account.id,
+        existingEntry.id,
+        day.id,
+        payload.input
+      );
+
+      res.status(200).json({
+        entry: serializeFoodEntry(entry)
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
 
   router.post('/food-estimates/photo', uploadMealPhotoFile, async (req, res, next) => {
     try {
@@ -172,5 +240,19 @@ function serializeFoodEntry(entry: FoodEntry) {
     photoUploadedAt: entry.photoUploadedAt?.toISOString() ?? null,
     createdAt: entry.createdAt.toISOString(),
     updatedAt: entry.updatedAt.toISOString()
+  };
+}
+
+function serializeFoodItem(item: FoodItem) {
+  return {
+    id: item.id,
+    name: item.name,
+    brand: item.brand,
+    servingQuantity: item.servingQuantity,
+    servingUnit: item.servingUnit,
+    caloriesKcal: item.caloriesKcal,
+    proteinGrams: item.proteinGrams,
+    carbsGrams: item.carbsGrams,
+    fatGrams: item.fatGrams
   };
 }
