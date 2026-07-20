@@ -76,6 +76,18 @@ export class ApiClient {
     });
   }
 
+  async put<TResponse>(
+    path: string,
+    body: unknown,
+    options: RequestOptions = {}
+  ): Promise<TResponse> {
+    return this.request<TResponse>(path, {
+      ...options,
+      body,
+      method: 'PUT'
+    });
+  }
+
   async request<TResponse>(path: string, options: RequestOptions = {}): Promise<TResponse> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? this.timeoutMs);
