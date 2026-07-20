@@ -5,6 +5,7 @@ import { Pressable, StyleSheet } from 'react-native';
 
 import { AppText } from '../../components/ui';
 import { LogMealScreen } from '../../features/foodLog';
+import { PlanScreen } from '../../features/plan';
 import { PlaceholderScreen } from '../../screens/PlaceholderScreen';
 import { colors, spacing } from '../../theme';
 import type { AppStackParamList, MainTabParamList } from '../types';
@@ -46,13 +47,8 @@ export function AppTabs() {
       <Tab.Screen name="Log" options={{ title: 'Log meal' }}>
         {() => <LogMealScreen />}
       </Tab.Screen>
-      <Tab.Screen name="Plan">
-        {() => (
-          <PlaceholderScreen
-            title="Plan"
-            subtitle="Training and rest day calorie and macro targets will be shown here."
-          />
-        )}
+      <Tab.Screen name="Plan" options={{ title: 'Plan' }}>
+        {() => <PlanScreen />}
       </Tab.Screen>
       <Tab.Screen name="Trends">
         {() => (
