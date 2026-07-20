@@ -1,7 +1,7 @@
 import * as ImagePicker from 'expo-image-picker';
 
 import { apiClient } from '../../api/client';
-import type { MealPhotoUploadResponse } from '../../api/types';
+import type { MealPhotoEstimateResponse, MealPhotoUploadResponse } from '../../api/types';
 
 export type MealPhotoSource = 'camera' | 'library';
 
@@ -60,6 +60,24 @@ export async function uploadMealPhoto(
   foodEntryId: string,
   photo: CapturedMealPhoto
 ): Promise<MealPhotoUploadResponse> {
+  return apiClient.post<MealPhotoUploadResponse>(
+    `/food-entries/${encodeURIComponent(foodEntryId)}/photo`,
+    buildPhotoFormData(photo),
+    { timeoutMs: 30_000 }
+  );
+}
+
+export async function estimateMealPhoto(
+  photo: CapturedMealPhoto
+): Promise<MealPhotoEstimateResponse> {
+  return apiClient.post<MealPhotoEstimateResponse>(
+    '/food-estimates/photo',
+    buildPhotoFormData(photo),
+    { timeoutMs: 45_000 }
+  );
+}
+
+function buildPhotoFormData(photo: CapturedMealPhoto): FormData {
   const formData = new FormData();
 
   formData.append('photo', {
@@ -68,11 +86,7 @@ export async function uploadMealPhoto(
     uri: photo.uri
   } as unknown as Blob);
 
-  return apiClient.post<MealPhotoUploadResponse>(
-    `/food-entries/${encodeURIComponent(foodEntryId)}/photo`,
-    formData,
-    { timeoutMs: 30_000 }
-  );
+  return formData;
 }
 
 async function requestCameraPermission(): Promise<boolean> {

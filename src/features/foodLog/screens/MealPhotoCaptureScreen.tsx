@@ -2,20 +2,34 @@ import { useState } from 'react';
 import { Image, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ApiError } from '../../../api/client';
+import type { MealPhotoEstimate } from '../../../api/types';
 import { AppText, Button, Card, Input, Screen, StatRow } from '../../../components/ui';
 import { colors, spacing } from '../../../theme';
 import {
   captureMealPhoto,
   type CapturedMealPhoto,
+  estimateMealPhoto,
   type MealPhotoSource,
   uploadMealPhoto
 } from '../photoCaptureService';
 
+type EstimateFormState = {
+  caloriesKcal: string;
+  carbsGrams: string;
+  fatGrams: string;
+  name: string;
+  proteinGrams: string;
+  quantityDescription: string;
+};
+
 export function MealPhotoCaptureScreen() {
   const [entryId, setEntryId] = useState('');
   const [photo, setPhoto] = useState<CapturedMealPhoto | null>(null);
+  const [estimate, setEstimate] = useState<MealPhotoEstimate | null>(null);
+  const [estimateForm, setEstimateForm] = useState<EstimateFormState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [isEstimating, setIsEstimating] = useState(false);
   const [isPicking, setIsPicking] = useState<MealPhotoSource | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -28,11 +42,35 @@ export function MealPhotoCaptureScreen() {
       const selectedPhoto = await captureMealPhoto(source);
       if (selectedPhoto) {
         setPhoto(selectedPhoto);
+        setEstimate(null);
+        setEstimateForm(null);
       }
     } catch (pickError) {
       setError(readErrorMessage(pickError, 'Unable to select a meal photo.'));
     } finally {
       setIsPicking(null);
+    }
+  };
+
+  const estimatePhoto = async () => {
+    if (!photo) {
+      setError('Capture or choose a meal photo first.');
+      return;
+    }
+
+    setError(null);
+    setSuccess(null);
+    setIsEstimating(true);
+
+    try {
+      const response = await estimateMealPhoto(photo);
+      setEstimate(response.estimate);
+      setEstimateForm(estimateToForm(response.estimate));
+      setSuccess('Estimate ready. Review and correct the fields before saving.');
+    } catch (estimateError) {
+      setError(readErrorMessage(estimateError, 'Unable to estimate the meal photo.'));
+    } finally {
+      setIsEstimating(false);
     }
   };
 
@@ -102,6 +140,9 @@ export function MealPhotoCaptureScreen() {
               <Image source={{ uri: photo.uri }} style={styles.preview} />
               <StatRow label="Image" value={`${photo.width} x ${photo.height}`} />
               <StatRow label="Type" value={photo.mimeType} />
+              <Button disabled={isEstimating} onPress={estimatePhoto}>
+                {isEstimating ? 'Estimating...' : 'Estimate calories and macros'}
+              </Button>
             </View>
           ) : (
             <View style={styles.emptyPreview}>
@@ -112,6 +153,85 @@ export function MealPhotoCaptureScreen() {
             </View>
           )}
         </Card>
+
+        {estimate && estimateForm ? (
+          <Card style={styles.card}>
+            <View style={styles.sectionHeader}>
+              <AppText variant="heading">Correct estimate</AppText>
+              <AppText variant="caption" tone="warning">
+                {estimate.confidence.toUpperCase()} CONFIDENCE
+              </AppText>
+            </View>
+            <Input
+              label="Meal name"
+              onChangeText={(value) =>
+                setEstimateForm((current) => current ? { ...current, name: value } : current)
+              }
+              value={estimateForm.name}
+            />
+            <Input
+              label="Quantity"
+              onChangeText={(value) =>
+                setEstimateForm((current) =>
+                  current ? { ...current, quantityDescription: value } : current
+                )
+              }
+              value={estimateForm.quantityDescription}
+            />
+            <View style={styles.macroGrid}>
+              <Input
+                keyboardType="decimal-pad"
+                label="Calories"
+                onChangeText={(value) =>
+                  setEstimateForm((current) =>
+                    current ? { ...current, caloriesKcal: value } : current
+                  )
+                }
+                value={estimateForm.caloriesKcal}
+              />
+              <Input
+                keyboardType="decimal-pad"
+                label="Protein"
+                helperText="Grams"
+                onChangeText={(value) =>
+                  setEstimateForm((current) =>
+                    current ? { ...current, proteinGrams: value } : current
+                  )
+                }
+                value={estimateForm.proteinGrams}
+              />
+              <Input
+                keyboardType="decimal-pad"
+                label="Carbs"
+                helperText="Grams"
+                onChangeText={(value) =>
+                  setEstimateForm((current) =>
+                    current ? { ...current, carbsGrams: value } : current
+                  )
+                }
+                value={estimateForm.carbsGrams}
+              />
+              <Input
+                keyboardType="decimal-pad"
+                label="Fat"
+                helperText="Grams"
+                onChangeText={(value) =>
+                  setEstimateForm((current) =>
+                    current ? { ...current, fatGrams: value } : current
+                  )
+                }
+                value={estimateForm.fatGrams}
+              />
+            </View>
+            <View style={styles.promptList}>
+              {estimate.correctionPrompts.map((prompt) => (
+                <AppText key={prompt} variant="caption" tone="muted">
+                  {prompt}
+                </AppText>
+              ))}
+            </View>
+          </Card>
+        ) : null}
 
         <Card style={styles.card}>
           <Input
@@ -160,6 +280,17 @@ function readErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
+function estimateToForm(estimate: MealPhotoEstimate): EstimateFormState {
+  return {
+    caloriesKcal: String(estimate.caloriesKcal),
+    carbsGrams: String(estimate.carbsGrams),
+    fatGrams: String(estimate.fatGrams),
+    name: estimate.name,
+    proteinGrams: String(estimate.proteinGrams),
+    quantityDescription: estimate.quantityDescription
+  };
+}
+
 const styles = StyleSheet.create({
   screen: {
     paddingHorizontal: spacing.lg
@@ -187,6 +318,20 @@ const styles = StyleSheet.create({
   },
   previewGroup: {
     gap: spacing.md
+  },
+  sectionHeader: {
+    gap: spacing.xs
+  },
+  macroGrid: {
+    gap: spacing.md
+  },
+  promptList: {
+    backgroundColor: colors.warningSoft,
+    borderColor: colors.warning,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: spacing.sm,
+    padding: spacing.md
   },
   preview: {
     aspectRatio: 4 / 3,

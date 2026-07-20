@@ -136,3 +136,19 @@ export type MealPhotoUploadResponse = {
     objectKey: string;
   };
 };
+
+export type MealPhotoEstimate = {
+  caloriesKcal: number;
+  carbsGrams: number;
+  confidence: 'low' | 'medium' | 'high';
+  correctionPrompts: string[];
+  fatGrams: number;
+  items: string[];
+  name: string;
+  proteinGrams: number;
+  quantityDescription: string;
+};
+
+export type MealPhotoEstimateResponse = {
+  estimate: MealPhotoEstimate;
+};
