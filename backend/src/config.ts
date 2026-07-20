@@ -17,6 +17,8 @@ export type AppConfig = {
   objectStoragePrefix?: string;
   objectStorageRegion?: string;
   objectStorageSecretAccessKey?: string;
+  openAiApiKey?: string;
+  openAiModel: string;
   port: number;
   selfUrl?: string;
 };
@@ -76,6 +78,8 @@ export function loadConfig(env: Env = process.env): AppConfig {
     objectStoragePrefix: readOptionalString(env, 'OBJECT_STORAGE_PREFIX'),
     objectStorageRegion: readOptionalString(env, 'OBJECT_STORAGE_REGION'),
     objectStorageSecretAccessKey: readOptionalString(env, 'OBJECT_STORAGE_SECRET_ACCESS_KEY'),
+    openAiApiKey: readOptionalString(env, 'OPENAI_API_KEY'),
+    openAiModel: readOptionalString(env, 'OPENAI_MODEL') ?? 'gpt-4o-mini',
     port: readInteger(env, 'PORT', 8080),
     selfUrl: readOptionalString(env, 'SELF_URL')
   };

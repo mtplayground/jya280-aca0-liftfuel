@@ -8,7 +8,11 @@ import type { AppConfig } from '../config';
 import { HttpError } from '../errors';
 import type { FoodEntry } from '../models';
 import { AccountRepository, FoodLogRepository } from '../repositories';
-import { createObjectStorageService, hasObjectStorageConfig } from '../services';
+import {
+  createObjectStorageService,
+  hasObjectStorageConfig,
+  MealPhotoEstimationService
+} from '../services';
 
 const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
 const allowedPhotoTypes = new Set([
@@ -47,6 +51,34 @@ export function createFoodLogRouter(config: AppConfig, pool: Pool): Router {
   const router = createRouter();
   const accounts = new AccountRepository(pool);
   const foodLog = new FoodLogRepository(pool);
+  const estimator = new MealPhotoEstimationService(config);
+
+  router.post('/food-estimates/photo', uploadMealPhotoFile, async (req, res, next) => {
+    try {
+      const session = await resolveAuthenticatedSession(req, config, accounts);
+      if (!session) {
+        throw new HttpError(401, 'UNAUTHENTICATED', 'Sign in is required.');
+      }
+
+      const file = req.file;
+      if (!file) {
+        throw new HttpError(400, 'PHOTO_REQUIRED', 'A meal photo file is required.');
+      }
+
+      if (!allowedPhotoTypes.has(file.mimetype)) {
+        throw new HttpError(400, 'UNSUPPORTED_IMAGE_TYPE', 'Use a JPEG, PNG, WebP, HEIC, or HEIF image.');
+      }
+
+      const estimate = await estimator.estimate({
+        body: file.buffer,
+        contentType: file.mimetype
+      });
+
+      res.status(200).json({ estimate });
+    } catch (error) {
+      next(error);
+    }
+  });
 
   router.post(
     '/food-entries/:entryId/photo',
