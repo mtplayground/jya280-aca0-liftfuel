@@ -270,7 +270,10 @@ function readLogDate(value: unknown): string {
   return value;
 }
 
-function serializeDailyTotals(aggregation: DailyFoodAggregation, day: TrainingDayResolution) {
+export function serializeDailyTotals(
+  aggregation: DailyFoodAggregation,
+  day: TrainingDayResolution
+) {
   const remaining = calculateRemaining(aggregation.totals, day.target);
   const progress = calculateProgress(aggregation.totals, day.target);
   const status = calculateOnTrackStatus(aggregation.totals, day.target);
