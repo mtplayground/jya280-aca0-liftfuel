@@ -1,5 +1,7 @@
 export type AuthStackParamList = {
   SignIn: undefined;
+  SignUp: undefined;
+  PasswordReset: undefined;
 };
 
 export type OnboardingStackParamList = {
@@ -23,4 +25,5 @@ export type AppStackParamList = {
 export type SessionState = {
   hasAccount: boolean;
   hasCompletedProfile: boolean;
+  isLoading: boolean;
 };

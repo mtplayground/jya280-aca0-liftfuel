@@ -46,6 +46,17 @@ export class ApiClient {
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   }
 
+  url(path: string, query: Record<string, string | undefined> = {}): string {
+    const url = new URL(`${this.baseUrl}${normalizePath(path)}`);
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== undefined) {
+        url.searchParams.set(key, value);
+      }
+    }
+
+    return url.toString();
+  }
+
   async get<TResponse>(path: string, options: RequestOptions = {}): Promise<TResponse> {
     return this.request<TResponse>(path, {
       ...options,
