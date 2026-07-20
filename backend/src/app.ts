@@ -8,6 +8,7 @@ import { HttpError } from './errors';
 import { errorHandler } from './middleware/errorHandler';
 import { createAuthRouter } from './routes/auth';
 import { createHealthRouter } from './routes/health';
+import { createProfileRouter } from './routes/profile';
 
 function collectAllowedOrigins(config: AppConfig): Set<string> {
   return new Set(
@@ -47,6 +48,7 @@ export function createApp(config: AppConfig, pool: Pool) {
   );
 
   app.use(config.apiBasePath, createAuthRouter(config, pool));
+  app.use(config.apiBasePath, createProfileRouter(config, pool));
   app.use(config.apiBasePath, createHealthRouter(pool));
 
   app.use(config.apiBasePath, (_req, _res, next) => {
