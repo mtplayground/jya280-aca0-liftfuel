@@ -1,10 +1,12 @@
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import express from 'express';
 import type { Pool } from 'pg';
 
 import type { AppConfig } from './config';
 import { HttpError } from './errors';
 import { errorHandler } from './middleware/errorHandler';
+import { createAuthRouter } from './routes/auth';
 import { createHealthRouter } from './routes/health';
 
 function collectAllowedOrigins(config: AppConfig): Set<string> {
@@ -23,6 +25,7 @@ export function createApp(config: AppConfig, pool: Pool) {
   app.disable('x-powered-by');
 
   app.use(express.json({ limit: '1mb' }));
+  app.use(cookieParser());
   app.use(
     cors({
       credentials: true,
@@ -43,6 +46,7 @@ export function createApp(config: AppConfig, pool: Pool) {
     })
   );
 
+  app.use(config.apiBasePath, createAuthRouter(config, pool));
   app.use(config.apiBasePath, createHealthRouter(pool));
 
   app.use(config.apiBasePath, (_req, _res, next) => {
