@@ -8,9 +8,10 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "backend:build": "tsc -p backend/tsconfig.json",
+    "backend:build": "tsc -p backend/tsconfig.build.json",
     "backend:dev": "tsx backend/src/server.ts",
     "backend:start": "node backend/dist/server.js",
+    "backend:test": "node --import tsx --test backend/src/services/planEngine.test.ts backend/src/services/trainingSchedule.test.ts backend/src/routes/foodLog.test.ts",
     "db:migrate": "tsx backend/src/db/migrate.ts",
     "typecheck": "tsc --noEmit && tsc -p backend/tsconfig.json --noEmit"
   },
