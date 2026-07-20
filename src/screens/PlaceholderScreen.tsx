@@ -1,5 +1,7 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StyleSheet, View } from 'react-native';
+
+import { AppText, Button, Card, Screen } from '../components/ui';
+import { spacing } from '../theme';
 
 type PlaceholderScreenProps = {
   title: string;
@@ -15,77 +17,42 @@ export function PlaceholderScreen({
   onAction
 }: PlaceholderScreenProps) {
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.content}>
-        <Text style={styles.eyebrow}>LiftFuel</Text>
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.subtitle}>{subtitle}</Text>
+    <Screen contentStyle={styles.content}>
+      <Card style={styles.card}>
+        <View style={styles.copy}>
+          <AppText variant="caption" tone="primary" style={styles.eyebrow}>
+            LiftFuel
+          </AppText>
+          <AppText variant="display">{title}</AppText>
+          <AppText variant="body" tone="muted">
+            {subtitle}
+          </AppText>
+        </View>
         {actionLabel && onAction ? (
-          <Pressable
-            accessibilityRole="button"
-            onPress={onAction}
-            style={({ pressed }) => [
-              styles.button,
-              pressed ? styles.buttonPressed : undefined
-            ]}
-          >
-            <Text style={styles.buttonText}>{actionLabel}</Text>
-          </Pressable>
+          <Button onPress={onAction} style={styles.action}>
+            {actionLabel}
+          </Button>
         ) : null}
-      </View>
-    </SafeAreaView>
+      </Card>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#F8FAFC'
-  },
   content: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: 24
+    justifyContent: 'center'
+  },
+  card: {
+    gap: spacing.xl
+  },
+  copy: {
+    gap: spacing.md
   },
   eyebrow: {
-    color: '#2563EB',
-    fontSize: 14,
-    fontWeight: '700',
-    letterSpacing: 0,
-    marginBottom: 12,
     textTransform: 'uppercase'
   },
-  title: {
-    color: '#0F172A',
-    fontSize: 32,
-    fontWeight: '800',
-    letterSpacing: 0,
-    lineHeight: 38,
-    marginBottom: 12
-  },
-  subtitle: {
-    color: '#475569',
-    fontSize: 17,
-    lineHeight: 25,
-    marginBottom: 28
-  },
-  button: {
-    alignItems: 'center',
+  action: {
     alignSelf: 'flex-start',
-    backgroundColor: '#2563EB',
-    borderRadius: 8,
-    minHeight: 48,
-    justifyContent: 'center',
-    paddingHorizontal: 18,
-    paddingVertical: 12
-  },
-  buttonPressed: {
-    opacity: 0.82
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 0
+    minWidth: 180
   }
 });

@@ -1,6 +1,7 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 import { PlaceholderScreen } from '../../screens/PlaceholderScreen';
+import { colors } from '../../theme';
 import type { MainTabParamList } from '../types';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -11,8 +12,21 @@ export function AppTabs() {
       initialRouteName="Home"
       screenOptions={{
         headerTitleAlign: 'center',
-        tabBarActiveTintColor: '#2563EB',
-        tabBarInactiveTintColor: '#64748B'
+        headerShadowVisible: false,
+        headerStyle: {
+          backgroundColor: colors.surface
+        },
+        headerTintColor: colors.text,
+        headerTitleStyle: {
+          color: colors.text,
+          fontWeight: '700'
+        },
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textSubtle,
+        tabBarStyle: {
+          backgroundColor: colors.surface,
+          borderTopColor: colors.border
+        }
       }}
     >
       <Tab.Screen name="Home">
