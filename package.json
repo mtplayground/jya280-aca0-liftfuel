@@ -11,6 +11,7 @@
     "backend:build": "tsc -p backend/tsconfig.json",
     "backend:dev": "tsx backend/src/server.ts",
     "backend:start": "node backend/dist/server.js",
+    "db:migrate": "tsx backend/src/db/migrate.ts",
     "typecheck": "tsc --noEmit && tsc -p backend/tsconfig.json --noEmit"
   },
   "dependencies": {
