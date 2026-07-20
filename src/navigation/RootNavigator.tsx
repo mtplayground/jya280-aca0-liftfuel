@@ -10,6 +10,8 @@ import {
   SignInScreen,
   SignUpScreen
 } from '../features/auth';
+import { OnboardingFlowScreen } from '../features/onboarding';
+import { getProfile } from '../features/profile';
 import { PlaceholderScreen } from '../screens/PlaceholderScreen';
 import { colors, navigationTheme, spacing } from '../theme';
 import { AppTabs } from './tabs/AppTabs';
@@ -55,23 +57,10 @@ function AuthNavigator({ onAuthenticated }: { onAuthenticated: () => void }) {
 function OnboardingNavigator({ onComplete }: { onComplete: () => void }) {
   return (
     <OnboardingStack.Navigator screenOptions={stackScreenOptions}>
-      <OnboardingStack.Screen name="Welcome" options={{ title: 'Welcome' }}>
-        {({ navigation }) => (
-          <PlaceholderScreen
-            title="Set up LiftFuel"
-            subtitle="The onboarding flow will collect goals, body stats, training rhythm, and unit preferences."
-            actionLabel="Start profile setup"
-            onAction={() => navigation.navigate('ProfileSetup')}
-          />
-        )}
-      </OnboardingStack.Screen>
-      <OnboardingStack.Screen name="ProfileSetup" options={{ title: 'Profile setup' }}>
+      <OnboardingStack.Screen name="Welcome" options={{ title: 'Set up profile' }}>
         {() => (
-          <PlaceholderScreen
-            title="Profile setup"
-            subtitle="Profile fields will be implemented in the onboarding and profile issues."
-            actionLabel="Mark onboarding complete"
-            onAction={onComplete}
+          <OnboardingFlowScreen
+            onComplete={onComplete}
           />
         )}
       </OnboardingStack.Screen>
@@ -114,12 +103,27 @@ export function RootNavigator() {
     isLoading: true
   });
 
-  const markAuthenticated = useCallback(() => {
+  const markAuthenticated = useCallback(async () => {
     setSession({
       hasAccount: true,
       hasCompletedProfile: false,
-      isLoading: false
+      isLoading: true
     });
+
+    try {
+      const profile = await getProfile();
+      setSession({
+        hasAccount: true,
+        hasCompletedProfile: Boolean(profile),
+        isLoading: false
+      });
+    } catch {
+      setSession({
+        hasAccount: true,
+        hasCompletedProfile: false,
+        isLoading: false
+      });
+    }
   }, []);
 
   useEffect(() => {
@@ -139,9 +143,21 @@ export function RootNavigator() {
         const refreshedSession = await refreshSession();
         if (!isActive) return;
 
+        if (!refreshedSession) {
+          setSession({
+            hasAccount: false,
+            hasCompletedProfile: false,
+            isLoading: false
+          });
+          return;
+        }
+
+        const profile = await getProfile();
+        if (!isActive) return;
+
         setSession({
-          hasAccount: Boolean(refreshedSession),
-          hasCompletedProfile: false,
+          hasAccount: true,
+          hasCompletedProfile: Boolean(profile),
           isLoading: false
         });
       } catch {

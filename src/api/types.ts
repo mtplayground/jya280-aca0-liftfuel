@@ -57,3 +57,47 @@ export type PasswordResetResponse = {
   delivery: 'sent' | 'skipped';
   status: 'accepted';
 };
+
+export type Sex = 'female' | 'male' | 'non_binary' | 'prefer_not_to_say';
+export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
+export type Goal = 'cut' | 'bulk' | 'maintain';
+export type TrainingSplit =
+  | 'full_body'
+  | 'upper_lower'
+  | 'push_pull_legs'
+  | 'body_part'
+  | 'sport_specific'
+  | 'custom';
+
+export type UserProfile = {
+  accountId: string;
+  activityLevel: ActivityLevel;
+  ageYears: number;
+  bodyFatIsEstimate: boolean;
+  bodyFatPercent: number | null;
+  createdAt: string;
+  goal: Goal;
+  heightCm: number;
+  sex: Sex;
+  trainingDaysPerWeek: number;
+  trainingSplit: TrainingSplit;
+  updatedAt: string;
+  weightKg: number;
+};
+
+export type ProfileInput = {
+  activityLevel: ActivityLevel;
+  ageYears: number;
+  bodyFatIsEstimate: true;
+  bodyFatPercent: number | null;
+  goal: Goal;
+  heightCm: number;
+  sex: Sex;
+  trainingDaysPerWeek: number;
+  trainingSplit: TrainingSplit;
+  weightKg: number;
+};
+
+export type ProfileResponse = {
+  profile: UserProfile | null;
+};

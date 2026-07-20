@@ -6,7 +6,6 @@ export type AuthStackParamList = {
 
 export type OnboardingStackParamList = {
   Welcome: undefined;
-  ProfileSetup: undefined;
 };
 
 export type MainTabParamList = {
