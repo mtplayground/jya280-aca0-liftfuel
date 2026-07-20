@@ -1,9 +1,17 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { AppText, Screen } from '../components/ui';
+import {
+  getStoredSession,
+  PasswordResetScreen,
+  refreshSession,
+  SignInScreen,
+  SignUpScreen
+} from '../features/auth';
 import { PlaceholderScreen } from '../screens/PlaceholderScreen';
-import { colors, navigationTheme } from '../theme';
+import { colors, navigationTheme, spacing } from '../theme';
 import { AppTabs } from './tabs/AppTabs';
 import type {
   AppStackParamList,
@@ -16,19 +24,30 @@ const AppStack = createNativeStackNavigator<AppStackParamList>();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const OnboardingStack = createNativeStackNavigator<OnboardingStackParamList>();
 
-function AuthNavigator({ onSignIn }: { onSignIn: () => void }) {
+function AuthNavigator({ onAuthenticated }: { onAuthenticated: () => void }) {
   return (
     <AuthStack.Navigator screenOptions={stackScreenOptions}>
       <AuthStack.Screen name="SignIn" options={{ title: 'Sign in' }}>
-        {() => (
-          <PlaceholderScreen
-            title="Sign in to LiftFuel"
-            subtitle="Account flows will connect to the shared auth service in the auth issues."
-            actionLabel="Continue as signed in"
-            onAction={onSignIn}
+        {(props) => (
+          <SignInScreen
+            {...props}
+            onAuthenticated={onAuthenticated}
           />
         )}
       </AuthStack.Screen>
+      <AuthStack.Screen name="SignUp" options={{ title: 'Create account' }}>
+        {(props) => (
+          <SignUpScreen
+            {...props}
+            onAuthenticated={onAuthenticated}
+          />
+        )}
+      </AuthStack.Screen>
+      <AuthStack.Screen
+        name="PasswordReset"
+        component={PasswordResetScreen}
+        options={{ title: 'Reset access' }}
+      />
     </AuthStack.Navigator>
   );
 }
@@ -91,10 +110,60 @@ function AppNavigator() {
 export function RootNavigator() {
   const [session, setSession] = useState<SessionState>({
     hasAccount: false,
-    hasCompletedProfile: false
+    hasCompletedProfile: false,
+    isLoading: true
   });
 
+  const markAuthenticated = useCallback(() => {
+    setSession({
+      hasAccount: true,
+      hasCompletedProfile: false,
+      isLoading: false
+    });
+  }, []);
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function hydrateSession() {
+      const storedSession = await getStoredSession();
+      if (isActive && storedSession) {
+        setSession({
+          hasAccount: true,
+          hasCompletedProfile: false,
+          isLoading: true
+        });
+      }
+
+      try {
+        const refreshedSession = await refreshSession();
+        if (!isActive) return;
+
+        setSession({
+          hasAccount: Boolean(refreshedSession),
+          hasCompletedProfile: false,
+          isLoading: false
+        });
+      } catch {
+        if (!isActive) return;
+
+        setSession({
+          hasAccount: Boolean(storedSession),
+          hasCompletedProfile: false,
+          isLoading: false
+        });
+      }
+    }
+
+    hydrateSession();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
   const routeKey = useMemo(() => {
+    if (session.isLoading) return 'loading';
     if (!session.hasAccount) return 'auth';
     if (!session.hasCompletedProfile) return 'onboarding';
     return 'app';
@@ -102,21 +171,19 @@ export function RootNavigator() {
 
   return (
     <NavigationContainer key={routeKey} theme={navigationTheme}>
-      {!session.hasAccount ? (
+      {session.isLoading ? (
+        <LoadingScreen />
+      ) : !session.hasAccount ? (
         <AuthNavigator
-          onSignIn={() =>
-            setSession({
-              hasAccount: true,
-              hasCompletedProfile: false
-            })
-          }
+          onAuthenticated={markAuthenticated}
         />
       ) : !session.hasCompletedProfile ? (
         <OnboardingNavigator
           onComplete={() =>
             setSession({
               hasAccount: true,
-              hasCompletedProfile: true
+              hasCompletedProfile: true,
+              isLoading: false
             })
           }
         />
@@ -124,6 +191,17 @@ export function RootNavigator() {
         <AppNavigator />
       )}
     </NavigationContainer>
+  );
+}
+
+function LoadingScreen() {
+  return (
+    <Screen contentStyle={loadingStyles.screen}>
+      <AppText variant="caption" tone="primary" style={loadingStyles.eyebrow}>
+        LiftFuel
+      </AppText>
+      <AppText variant="heading">Checking session</AppText>
+    </Screen>
   );
 }
 
@@ -136,5 +214,15 @@ const stackScreenOptions = {
   headerTitleStyle: {
     color: colors.text,
     fontWeight: '700' as const
+  }
+};
+
+const loadingStyles = {
+  screen: {
+    gap: spacing.md,
+    justifyContent: 'center' as const
+  },
+  eyebrow: {
+    textTransform: 'uppercase' as const
   }
 };
