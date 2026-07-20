@@ -7,7 +7,7 @@ import { AppText } from '../../components/ui';
 import { LogMealScreen } from '../../features/foodLog';
 import { HomeScreen } from '../../features/home';
 import { PlanScreen } from '../../features/plan';
-import { PlaceholderScreen } from '../../screens/PlaceholderScreen';
+import { TrendsScreen } from '../../features/trends';
 import { colors, spacing } from '../../theme';
 import type { AppStackParamList, MainTabParamList } from '../types';
 
@@ -47,12 +47,7 @@ export function AppTabs() {
         {() => <PlanScreen />}
       </Tab.Screen>
       <Tab.Screen name="Trends">
-        {() => (
-          <PlaceholderScreen
-            title="Trends"
-            subtitle="Progress charts and history will be added after progress capture exists."
-          />
-        )}
+        {() => <TrendsScreen />}
       </Tab.Screen>
     </Tab.Navigator>
   );
