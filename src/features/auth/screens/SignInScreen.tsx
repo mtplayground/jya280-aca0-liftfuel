@@ -3,9 +3,15 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 
+import { readAuthSessionFailureMessage } from '../../../api/errorMessages';
 import { Button } from '../../../components/ui';
 import type { AuthStackParamList } from '../../../navigation/types';
-import { hasAuthReturnParameters, refreshSession, startSignIn } from '../sessionService';
+import {
+  hasAuthReturnParameters,
+  logAuthSessionRefreshFailure,
+  refreshSessionForAuthFlow,
+  startSignIn
+} from '../sessionService';
 import { AuthFormShell } from './AuthFormShell';
 
 type SignInScreenProps = NativeStackScreenProps<AuthStackParamList, 'SignIn'> & {
@@ -16,26 +22,28 @@ export function SignInScreen({ navigation, onAuthenticated }: SignInScreenProps)
   const [error, setError] = useState<string | null>(null);
   const [isOpening, setIsOpening] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
+  const hasPendingAuthReturnRef = useRef(false);
   const isRefreshingRef = useRef(false);
 
-  const checkSession = useCallback(async (options: { showNoSessionMessage: boolean }) => {
+  const checkSession = useCallback(async (options: {
+    showFailureMessage: boolean;
+    source: string;
+  }) => {
     if (isRefreshingRef.current) return;
 
     isRefreshingRef.current = true;
     setError(null);
     try {
-      const session = await refreshSession();
-      if (!session) {
-        if (options.showNoSessionMessage) {
-          setError('No active session found.');
-        }
+      const result = await refreshSessionForAuthFlow();
+      if (result.status === 'authenticated') {
+        hasPendingAuthReturnRef.current = false;
+        onAuthenticated();
         return;
       }
 
-      onAuthenticated();
-    } catch {
-      if (options.showNoSessionMessage) {
-        setError('Unable to refresh your session.');
+      if (options.showFailureMessage) {
+        logAuthSessionRefreshFailure(options.source, result.failure);
+        setError(readAuthSessionFailureMessage(result.failure));
       }
     } finally {
       isRefreshingRef.current = false;
@@ -45,7 +53,10 @@ export function SignInScreen({ navigation, onAuthenticated }: SignInScreenProps)
   const checkSessionManually = async () => {
     setIsChecking(true);
     try {
-      await checkSession({ showNoSessionMessage: true });
+      await checkSession({
+        showFailureMessage: true,
+        source: 'manual_refresh'
+      });
     } finally {
       setIsChecking(false);
     }
@@ -54,12 +65,17 @@ export function SignInScreen({ navigation, onAuthenticated }: SignInScreenProps)
   const openSignIn = async () => {
     setError(null);
     setIsOpening(true);
+    hasPendingAuthReturnRef.current = true;
     try {
       await startSignIn('/');
       setTimeout(() => {
-        void checkSession({ showNoSessionMessage: false });
+        void checkSession({
+          showFailureMessage: false,
+          source: 'sign_in_button_return'
+        });
       }, 500);
     } catch {
+      hasPendingAuthReturnRef.current = false;
       setError('Unable to open sign-in. Check your connection and try again.');
     } finally {
       setIsOpening(false);
@@ -68,7 +84,10 @@ export function SignInScreen({ navigation, onAuthenticated }: SignInScreenProps)
 
   useFocusEffect(
     useCallback(() => {
-      void checkSession({ showNoSessionMessage: false });
+      void checkSession({
+        showFailureMessage: hasPendingAuthReturnRef.current,
+        source: 'screen_focus'
+      });
     }, [checkSession])
   );
 
@@ -78,7 +97,11 @@ export function SignInScreen({ navigation, onAuthenticated }: SignInScreenProps)
     async function refreshAfterAuthCallback() {
       if (await hasAuthReturnParameters()) {
         if (isActive) {
-          void checkSession({ showNoSessionMessage: false });
+          hasPendingAuthReturnRef.current = true;
+          void checkSession({
+            showFailureMessage: true,
+            source: 'auth_callback_params'
+          });
         }
       }
     }
@@ -95,7 +118,10 @@ export function SignInScreen({ navigation, onAuthenticated }: SignInScreenProps)
 
     const refreshWhenVisible = () => {
       if (document.visibilityState === 'visible') {
-        void checkSession({ showNoSessionMessage: false });
+        void checkSession({
+          showFailureMessage: hasPendingAuthReturnRef.current,
+          source: 'web_visibility'
+        });
       }
     };
 
@@ -110,7 +136,10 @@ export function SignInScreen({ navigation, onAuthenticated }: SignInScreenProps)
 
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
-        void checkSession({ showNoSessionMessage: false });
+        void checkSession({
+          showFailureMessage: hasPendingAuthReturnRef.current,
+          source: 'app_state_active'
+        });
       }
     });
 
