@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 import type { ApiClientOptions, ApiErrorBody, RequestOptions } from './types';
 
 declare const process:
@@ -9,14 +11,19 @@ declare const process:
   | undefined;
 
 const DEFAULT_TIMEOUT_MS = 10_000;
-const DEFAULT_API_BASE_URL = 'http://localhost:8080/api';
+const DEFAULT_NATIVE_API_BASE_URL = 'http://localhost:8080/api';
 
 function readConfiguredBaseUrl(): string {
-  if (typeof process === 'undefined') {
-    return DEFAULT_API_BASE_URL;
+  const configuredBaseUrl = process?.env?.EXPO_PUBLIC_API_BASE_URL;
+  if (configuredBaseUrl) {
+    return configuredBaseUrl;
   }
 
-  return process.env?.EXPO_PUBLIC_API_BASE_URL ?? DEFAULT_API_BASE_URL;
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.origin) {
+    return `${window.location.origin}/api`;
+  }
+
+  return DEFAULT_NATIVE_API_BASE_URL;
 }
 
 function normalizeBaseUrl(baseUrl: string): string {
