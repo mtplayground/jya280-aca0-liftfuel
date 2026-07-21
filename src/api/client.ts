@@ -32,11 +32,18 @@ function normalizeBaseUrl(baseUrl: string): string {
 
 export class ApiError extends Error {
   readonly code: string;
+  readonly details: Record<string, string | undefined>;
   readonly status: number;
 
-  constructor(status: number, code: string, message: string) {
+  constructor(
+    status: number,
+    code: string,
+    message: string,
+    details: Record<string, string | undefined> = {}
+  ) {
     super(message);
     this.code = code;
+    this.details = details;
     this.name = 'ApiError';
     this.status = status;
   }
@@ -98,9 +105,10 @@ export class ApiClient {
   async request<TResponse>(path: string, options: RequestOptions = {}): Promise<TResponse> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? this.timeoutMs);
+    const requestUrl = `${this.baseUrl}${normalizePath(path)}`;
 
     try {
-      const response = await this.fetchImpl(`${this.baseUrl}${normalizePath(path)}`, {
+      const response = await this.fetchImpl(requestUrl, {
         ...options,
         body: serializeBody(options.body),
         credentials: options.credentials ?? 'include',
@@ -123,10 +131,16 @@ export class ApiClient {
       }
 
       if (error instanceof Error && error.name === 'AbortError') {
-        throw new ApiError(408, 'REQUEST_TIMEOUT', 'The request timed out.');
+        throw new ApiError(408, 'REQUEST_TIMEOUT', 'The request timed out.', {
+          url: requestUrl
+        });
       }
 
-      throw new ApiError(0, 'NETWORK_ERROR', 'The API request could not be completed.');
+      throw new ApiError(0, 'NETWORK_ERROR', 'The API request could not be completed.', {
+        originalErrorMessage: error instanceof Error ? error.message : String(error),
+        originalErrorName: error instanceof Error ? error.name : typeof error,
+        url: requestUrl
+      });
     } finally {
       clearTimeout(timeout);
     }
@@ -140,10 +154,11 @@ export class ApiClient {
       return new ApiError(
         response.status,
         body.error?.code ?? 'API_ERROR',
-        body.error?.message ?? fallbackMessage
+        body.error?.message ?? fallbackMessage,
+        { url: response.url }
       );
     } catch {
-      return new ApiError(response.status, 'API_ERROR', fallbackMessage);
+      return new ApiError(response.status, 'API_ERROR', fallbackMessage, { url: response.url });
     }
   }
 }

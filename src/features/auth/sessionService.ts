@@ -1,6 +1,8 @@
 import { Linking, Platform } from 'react-native';
 
 import { ApiError, apiClient } from '../../api/client';
+import { classifyAuthSessionFailure } from '../../api/errorMessages';
+import type { AuthSessionFailure } from '../../api/errorMessages';
 import type { AuthSessionResponse, PasswordResetResponse } from '../../api/types';
 import {
   clearSessionSnapshot,
@@ -8,6 +10,10 @@ import {
   saveSessionSnapshot
 } from './sessionStorage';
 import type { StoredSessionSnapshot } from './types';
+
+export type AuthSessionRefreshResult =
+  | { session: AuthSessionResponse; status: 'authenticated' }
+  | { failure: AuthSessionFailure; status: 'failed' };
 
 export async function getStoredSession(): Promise<StoredSessionSnapshot | null> {
   return readSessionSnapshot();
@@ -27,17 +33,47 @@ export async function hasAuthReturnParameters(): Promise<boolean> {
 
 export async function refreshSession(): Promise<AuthSessionResponse | null> {
   try {
-    const session = await apiClient.get<AuthSessionResponse>('/auth/me');
-    await saveSessionSnapshot(session);
-    return session;
+    return await fetchAndStoreSession();
   } catch (error) {
     if (error instanceof ApiError && error.status === 401) {
-      await clearSessionSnapshot();
+      await clearSessionSnapshotAfterFailure();
       return null;
     }
 
     throw error;
   }
+}
+
+export async function refreshSessionForAuthFlow(): Promise<AuthSessionRefreshResult> {
+  try {
+    return {
+      session: await fetchAndStoreSession(),
+      status: 'authenticated'
+    };
+  } catch (error) {
+    const failure = classifyAuthSessionFailure(error);
+    if (failure.reason === 'session_not_recognized') {
+      await clearSessionSnapshotAfterFailure();
+    }
+
+    return {
+      failure,
+      status: 'failed'
+    };
+  }
+}
+
+export function logAuthSessionRefreshFailure(
+  source: string,
+  failure: AuthSessionFailure
+): void {
+  console.warn('Auth session refresh failed', {
+    code: failure.code,
+    message: failure.message,
+    reason: failure.reason,
+    source,
+    status: failure.status
+  });
 }
 
 export async function signOut(): Promise<void> {
@@ -50,6 +86,22 @@ export async function requestPasswordReset(
   returnTo = '/'
 ): Promise<PasswordResetResponse> {
   return apiClient.post<PasswordResetResponse>('/auth/password-reset', { email, returnTo });
+}
+
+async function fetchAndStoreSession(): Promise<AuthSessionResponse> {
+  const session = await apiClient.get<AuthSessionResponse>('/auth/me');
+  await saveSessionSnapshot(session);
+  return session;
+}
+
+async function clearSessionSnapshotAfterFailure(): Promise<void> {
+  try {
+    await clearSessionSnapshot();
+  } catch (error) {
+    console.warn('Unable to clear stored auth session snapshot', {
+      message: error instanceof Error ? error.message : String(error)
+    });
+  }
 }
 
 async function readCurrentUrl(): Promise<string | null> {
