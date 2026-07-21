@@ -1,74 +1,24 @@
-LiftFuel architecture plan
+Architecture plan for issues #51-#54
 
-Product scope
-- Mobile-first nutrition planning app named LiftFuel.
-- Users create an account, complete onboarding, log meals by photo or manual entry, view calculated daily plans, track totals/streaks/check-ins, and review progress trends.
+Scope overview
+- These issues are deployment/web compatibility fixes for the existing LiftFuel Expo web + Express backend app.
+- They should be implemented as small, isolated patches that preserve the existing API contracts and mobile behavior.
 
-Module structure
-- app/: mobile app source, navigation shell, screens, theme, assets, and platform configuration.
-- app/src/navigation/: root navigator, auth stack, onboarding flow, main tab navigation, and route types.
-- app/src/theme/: color tokens, typography, spacing, radius, shadows, component variants, and shared primitives.
-- app/src/api/: API client, request/response types, auth/session helpers, error normalization, and storage adapters.
-- app/src/features/auth/: sign-up, sign-in, session persistence, account settings entry points.
-- app/src/features/onboarding/: step definitions, profile capture flow, validation, and completion state.
-- app/src/features/profile/: profile model binding, editable profile screen, unit preferences.
-- app/src/features/food-log/: meal log list, photo capture, storage upload, AI estimation review, manual search/edit, daily totals.
-- app/src/features/plan/: calorie and macro calculation engine, training/rest day rules, plan screen UI.
-- app/src/features/home/: dashboard composition, on-track status, streaks, check-ins, quick actions.
-- app/src/features/progress/: weigh-ins/body metrics capture, trend charts, historical summaries.
-- app/src/lib/: shared date, units, validation, formatting, storage, and test utilities.
-- backend/: service entry point, routes/controllers, persistence schema, auth middleware, storage integration, AI adapter, and background-safe domain services.
-- backend/src/domain/: shared business logic for profiles, food entries, plan calculation, streaks, and progress aggregates.
-- backend/src/db/: migrations, schema definitions, repositories, and seed/test fixtures.
-- packages/shared/ or shared/: cross-boundary TypeScript types and validation schemas used by app and backend when the chosen stack supports it.
+Module structure and file organization
+- Frontend API URL behavior: keep request URL construction centralized in src/api/client.ts. Web builds should default to the same public origin plus /api when EXPO_PUBLIC_API_BASE_URL is absent; native/local development can continue to use the localhost fallback or explicit env override.
+- Session persistence: keep all persisted auth-session access behind src/features/auth/sessionStorage.ts. Add a platform-aware storage adapter there only, using browser localStorage on web and expo-secure-store on native.
+- Safe-area setup: keep global React providers in App.tsx. Wrap RootNavigator with SafeAreaProvider at the root so every screen and navigation component has safe-area context on web and native.
+- Auth/public origin alignment: keep reverse-proxy/public URL logic in backend/src/app.ts for CORS and backend/src/routes/auth.ts for return_to construction. Shared helper logic should derive public host/proto from X-Forwarded-Host and X-Forwarded-Proto with configured SELF_URL/ALLOWED_CORS_ORIGIN as explicit allowlist fallbacks.
 
-Shared types and data model
-- Account: id, email, password/auth provider metadata, createdAt, updatedAt.
-- Session: access token, refresh token or secure cookie session, expiry, user id.
-- Profile: user id, display name, birth date/age, sex, height, weight, goal, activity level, training schedule, dietary preferences, units.
-- FoodEntry: id, user id, date, meal type, photo asset id, items, calories, protein, carbs, fat, confidence/source, notes, createdAt, updatedAt.
-- FoodItem: name, quantity, serving unit, calories, protein, carbs, fat, source, optional external search id.
-- DailyPlan: user id, date, calories, macros, training/rest classification, calculation inputs/version.
-- DailyTotals: date, consumed macros/calories, remaining values, on-track status.
-- CheckIn/Streak: date, completion state, streak count, missed days.
-- ProgressEntry: date, weight, body measurements/photos if supported, notes.
-- ApiError: code, message, field errors, retryable flag.
-
-Issue dependency map
-- #1 creates the app shell and navigation needed by all screens.
-- #2 establishes visual primitives used by every UI issue.
-- #3 creates the backend/API contract used by auth, profile, food log, plans, and progress.
-- #4 depends on #3 and supports #5.
-- #5 depends on #4 and unlocks authenticated app state.
-- #6 depends on #1, #2, and #5.
-- #7 depends on #3 and supports onboarding/profile/plan logic.
-- #8 depends on #1, #2, #5, and #7.
-- #9 depends on #7 and #8.
-- #10 depends on #3 and authenticated users from #5.
-- #11 depends on #10 and platform media permissions/storage.
-- #12 depends on #10 and #11, with AI adapter isolated behind a backend service.
-- #13 depends on #10 and can share edit/review UI with #12.
-- #14 depends on #1, #2, #10, #11, #12, and #13.
-- #15 depends on #7 and should be implemented as pure, unit-testable core logic.
-- #16 depends on #7 and feeds #15/#17/#18.
-- #17 depends on #15 and #16.
-- #18 depends on #10, #15, and #16.
-- #19 depends on #10 and #18.
-- #20 depends on #17, #18, and #19.
-- #21 depends on #7 and #3.
-- #22 depends on #21 and can also incorporate #10/#18 history.
-- #23 should cover #15, #16, totals, streaks, validation, and API client edge cases.
-- #24 should audit all completed user-facing flows for loading, empty, error, offline, and permission-denied states.
-- #25 depends on the full stack and validates sign-up through onboarding, meal logging, plan/home/trends, and release configuration.
+Dependencies between issues
+- #53 (SafeAreaProvider) is independent and should be done before final browser verification because missing safe-area context can blank the web app.
+- #52 (web-compatible session storage) is independent but blocks a stable logged-out web render because expo-secure-store is not fully web-compatible.
+- #51 (live server requests) depends on understanding the final deployed URL shape and should be implemented in the shared API client so all screens benefit.
+- #54 (site/backend URL alignment for auth redirects) should be implemented after or alongside #51 because both rely on correct public origin handling behind Ideavibes' reverse proxy.
 
 Key design decisions
-- Keep business rules for plan calculations, day classification, daily totals, and streaks pure and framework-independent so they can be tested early and reused by UI/backend.
-- Treat the backend as the source of truth for authenticated data; the mobile app may cache server responses locally but should resolve conflicts through explicit refresh and save flows.
-- Define API payloads with shared schemas where possible to avoid drift between client and server.
-- Store food photos separately from food log rows; log rows reference immutable photo asset metadata and derived AI/manual estimates.
-- Make AI calorie/macro estimation asynchronous at the API boundary even if the first version waits inline, so later retries or provider changes do not reshape the client.
-- Separate auth/session state from profile completion state; a signed-in user can be routed to onboarding until required profile fields are complete.
-- Normalize dates around user-local calendar days for logs, plans, streaks, and progress views.
-- Keep UI navigation route names stable and typed from issue #1 so later screen work does not require route churn.
-- Use explicit empty/error/loading states per feature rather than relying on global fallbacks.
-- Add tests first around calculation-heavy modules before broad UI end-to-end coverage.
+- Do not hardcode a single deployed hostname into frontend code. Prefer same-origin /api on web, and keep EXPO_PUBLIC_API_BASE_URL as an override.
+- Do not add a second auth/JWT layer. Continue using the existing MCTAI mctai_session cookie flow and backend /api/auth/* routes.
+- Preserve native behavior by branching on Platform.OS === 'web' only where browser APIs are required.
+- CORS/origin checks must be proxy-aware and custom-domain-safe: absent Origin is allowed, same Origin host as X-Forwarded-Host is allowed, and configured allowed origins remain valid.
+- Browser verification should include root render, console/page errors, network failures, and auth UI sanity to catch white-screen regressions.
