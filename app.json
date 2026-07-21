@@ -2,7 +2,15 @@
   "expo": {
     "name": "LiftFuel",
     "slug": "liftfuel",
-    "version": "0.1.0",
+    "description": "LiftFuel helps lifters plan nutrition, log meals, and track progress against training and rest day targets.",
+    "version": "1.0.0",
+    "runtimeVersion": "1.0.0",
+    "privacy": "unlisted",
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "scheme": "liftfuel",
@@ -10,13 +18,18 @@
       "**/*"
     ],
     "ios": {
+      "bundleIdentifier": "app.mctai.liftfuel",
+      "buildNumber": "1",
       "supportsTablet": true,
       "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "LiftFuel uses the camera to capture meal photos.",
         "NSPhotoLibraryUsageDescription": "LiftFuel uses your photo library to attach meal photos."
       }
     },
     "android": {
+      "package": "app.mctai.liftfuel",
+      "versionCode": 1,
       "permissions": [
         "CAMERA",
         "READ_MEDIA_IMAGES"
