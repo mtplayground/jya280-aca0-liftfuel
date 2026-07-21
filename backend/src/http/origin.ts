@@ -18,6 +18,28 @@ export function resolvePublicOrigin(req: Request, config: AppConfig): string {
   return `${req.protocol}://${host}`.replace(/\/$/, '');
 }
 
+export function resolvePublicHost(req: Request, config: AppConfig): string | null {
+  return parseOriginHost(resolvePublicOrigin(req, config));
+}
+
+export function isSecurePublicRequest(req: Request, config: AppConfig): boolean {
+  try {
+    return new URL(resolvePublicOrigin(req, config)).protocol === 'https:';
+  } catch {
+    return req.secure;
+  }
+}
+
+export function isCrossSiteBrowserRequest(req: Request, config: AppConfig): boolean {
+  const origin = req.get('origin');
+  if (!origin) return false;
+
+  const originHost = parseOriginHost(origin);
+  const publicHost = resolvePublicHost(req, config);
+
+  return Boolean(originHost && publicHost && originHost !== publicHost);
+}
+
 export function isAllowedBrowserOrigin(
   req: Request,
   config: AppConfig,
@@ -43,7 +65,7 @@ function configuredOriginHosts(config: AppConfig): Set<string> {
   );
 }
 
-function parseOriginHost(value: string): string | null {
+export function parseOriginHost(value: string): string | null {
   if (!value) return null;
 
   try {

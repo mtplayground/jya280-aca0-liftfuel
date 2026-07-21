@@ -6,7 +6,9 @@ import {
   buildAuthLoginUrl,
   hashSessionToken,
   readSessionCookie,
-  resolveAuthenticatedSession
+  resolveAuthenticatedSession,
+  resolveSessionCookieOptions,
+  SESSION_COOKIE_NAME
 } from '../auth';
 import type { AppConfig } from '../config';
 import { HttpError } from '../errors';
@@ -74,12 +76,7 @@ export function createAuthRouter(config: AppConfig, pool: Pool): Router {
         await accounts.revokeSession(hashSessionToken(token));
       }
 
-      res.clearCookie('mctai_session', {
-        httpOnly: true,
-        path: '/',
-        sameSite: 'lax',
-        secure: config.isProduction
-      });
+      res.clearCookie(SESSION_COOKIE_NAME, resolveSessionCookieOptions(req, config));
       res.status(204).send();
     } catch (error) {
       next(error);

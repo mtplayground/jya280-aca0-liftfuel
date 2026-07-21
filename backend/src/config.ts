@@ -2,6 +2,9 @@ export type AppConfig = {
   apiBasePath: string;
   allowedCorsOrigin?: string;
   authAppToken?: string;
+  authCookieDomain?: string;
+  authCookieSameSite?: 'lax' | 'none' | 'strict';
+  authCookieSecure?: boolean;
   authJwksUrl?: string;
   authUrl?: string;
   databaseMaxConnections: number;
@@ -50,6 +53,32 @@ function readInteger(env: Env, key: string, fallback: number): number {
   return value;
 }
 
+function readBoolean(env: Env, key: string): boolean | undefined {
+  const rawValue = readOptionalString(env, key);
+  if (!rawValue) return undefined;
+
+  const normalized = rawValue.toLowerCase();
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
+  if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
+
+  throw new Error(`${key} must be a boolean value`);
+}
+
+function readCookieSameSite(
+  env: Env,
+  key: string
+): AppConfig['authCookieSameSite'] | undefined {
+  const rawValue = readOptionalString(env, key);
+  if (!rawValue) return undefined;
+
+  const normalized = rawValue.toLowerCase();
+  if (normalized === 'lax' || normalized === 'none' || normalized === 'strict') {
+    return normalized;
+  }
+
+  throw new Error(`${key} must be one of: lax, none, strict`);
+}
+
 function normalizeBasePath(path: string): string {
   const trimmed = path.trim();
   if (!trimmed || trimmed === '/') return '/api';
@@ -65,6 +94,9 @@ export function loadConfig(env: Env = process.env): AppConfig {
     apiBasePath: normalizeBasePath(readOptionalString(env, 'API_BASE_PATH') ?? '/api'),
     allowedCorsOrigin: readOptionalString(env, 'ALLOWED_CORS_ORIGIN'),
     authAppToken: readOptionalString(env, 'MCTAI_AUTH_APP_TOKEN'),
+    authCookieDomain: readOptionalString(env, 'MCTAI_SESSION_COOKIE_DOMAIN'),
+    authCookieSameSite: readCookieSameSite(env, 'MCTAI_SESSION_COOKIE_SAMESITE'),
+    authCookieSecure: readBoolean(env, 'MCTAI_SESSION_COOKIE_SECURE'),
     authJwksUrl: readOptionalString(env, 'MCTAI_AUTH_JWKS_URL'),
     authUrl: readOptionalString(env, 'MCTAI_AUTH_URL'),
     databaseMaxConnections: readInteger(env, 'DATABASE_MAX_CONNECTIONS', 5),

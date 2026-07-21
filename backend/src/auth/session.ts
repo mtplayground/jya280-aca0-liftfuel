@@ -1,13 +1,16 @@
 import { createHash } from 'node:crypto';
 
-import type { Request } from 'express';
+import type { CookieOptions, Request } from 'express';
 import jwt from 'jsonwebtoken';
 import jwksClient from 'jwks-rsa';
 
 import type { AppConfig } from '../config';
 import { HttpError } from '../errors';
+import { isCrossSiteBrowserRequest, isSecurePublicRequest } from '../http/origin';
 import type { AccountRepository } from '../repositories';
 import type { MctaiSessionClaims } from './claims';
+
+export const SESSION_COOKIE_NAME = 'mctai_session';
 
 type AuthenticatedSession = {
   account: Awaited<ReturnType<AccountRepository['upsertAccount']>>['account'];
@@ -78,8 +81,29 @@ export function hashSessionToken(token: string): string {
 }
 
 export function readSessionCookie(req: Request): string | null {
-  const token = req.cookies?.mctai_session;
+  const token = req.cookies?.[SESSION_COOKIE_NAME];
   return typeof token === 'string' && token ? token : null;
+}
+
+export function resolveSessionCookieOptions(req: Request, config: AppConfig): CookieOptions {
+  const sameSite = config.authCookieSameSite
+    ?? (isCrossSiteBrowserRequest(req, config) ? 'none' : 'lax');
+  const secure = sameSite === 'none'
+    ? true
+    : config.authCookieSecure ?? (config.isProduction || isSecurePublicRequest(req, config));
+  const options: CookieOptions = {
+    httpOnly: true,
+    path: '/',
+    sameSite,
+    secure
+  };
+  const domain = normalizeCookieDomain(config.authCookieDomain);
+
+  if (domain) {
+    options.domain = domain;
+  }
+
+  return options;
 }
 
 async function verifySessionCookie(token: string, config: AppConfig): Promise<MctaiSessionClaims> {
@@ -121,4 +145,21 @@ async function verifySessionCookie(token: string, config: AppConfig): Promise<Mc
       }
     );
   });
+}
+
+function normalizeCookieDomain(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+
+  const domain = value
+    .trim()
+    .replace(/^https?:\/\//i, '')
+    .split('/')[0]
+    .replace(/:\d+$/, '')
+    .toLowerCase();
+
+  if (!domain || domain === 'localhost' || /^\d{1,3}(?:\.\d{1,3}){3}$/.test(domain)) {
+    return undefined;
+  }
+
+  return domain.startsWith('.') ? domain : domain;
 }
