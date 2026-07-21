@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
 
-import { ApiError } from '../../../api/client';
+import { readAppErrorMessage } from '../../../api/errorMessages';
 import type { DailyTotalsResponse, StreakSummary } from '../../../api/types';
 import { AppText, Button, Card, Screen, StatRow } from '../../../components/ui';
 import type { MainTabParamList } from '../../../navigation/types';
@@ -127,6 +127,16 @@ export function HomeScreen() {
                 helper="days"
               />
             </View>
+
+            {state.totals.entryCount === 0 ? (
+              <Card style={styles.card}>
+                <AppText variant="heading">No meals logged today</AppText>
+                <AppText variant="body" tone="muted">
+                  Targets are ready. Add the first meal to see running totals and remaining macros.
+                </AppText>
+                <Button onPress={goToLog}>Log first meal</Button>
+              </Card>
+            ) : null}
 
             <Card style={styles.card}>
               <View style={styles.sectionHeader}>
@@ -257,9 +267,7 @@ function StatusPill({
 }
 
 function readErrorMessage(error: unknown, fallback: string): string {
-  if (error instanceof ApiError) return error.message;
-  if (error instanceof Error) return error.message;
-  return fallback;
+  return readAppErrorMessage(error, fallback);
 }
 
 const styles = StyleSheet.create({

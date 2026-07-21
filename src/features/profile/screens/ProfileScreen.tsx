@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
-import { ApiError } from '../../../api/client';
+import { readAppErrorMessage } from '../../../api/errorMessages';
 import type {
   ActivityLevel,
   Goal,
@@ -515,8 +515,7 @@ function labelFor<TValue extends string>(options: SelectOption<TValue>[], value:
 }
 
 function readErrorMessage(error: unknown, fallback: string): string {
-  if (error instanceof ApiError) return error.message;
-  return fallback;
+  return readAppErrorMessage(error, fallback);
 }
 
 const styles = StyleSheet.create({
