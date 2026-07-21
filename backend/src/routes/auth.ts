@@ -10,6 +10,7 @@ import {
 } from '../auth';
 import type { AppConfig } from '../config';
 import { HttpError } from '../errors';
+import { resolvePublicOrigin } from '../http/origin';
 import { AccountRepository } from '../repositories';
 import { sendEmail } from '../services';
 
@@ -129,7 +130,7 @@ function parseEmail(value: unknown): string {
 }
 
 function resolveReturnTo(req: Request, config: AppConfig, requested?: unknown): string {
-  const origin = publicOrigin(req, config);
+  const origin = resolvePublicOrigin(req, config);
   const fallback = `${origin}/`;
 
   if (typeof requested !== 'string' || !requested.trim()) {
@@ -138,7 +139,7 @@ function resolveReturnTo(req: Request, config: AppConfig, requested?: unknown): 
 
   try {
     const url = new URL(requested, origin);
-    if (url.origin !== origin || url.pathname.startsWith(config.apiBasePath)) {
+    if (url.origin !== origin || isApiReturnPath(url.pathname, config.apiBasePath)) {
       return fallback;
     }
 
@@ -148,18 +149,12 @@ function resolveReturnTo(req: Request, config: AppConfig, requested?: unknown): 
   }
 }
 
-function readReturnToQuery(req: Request): unknown {
-  return req.query.returnTo ?? req.query.return_to;
+function isApiReturnPath(pathname: string, apiBasePath: string): boolean {
+  return pathname === apiBasePath || pathname.startsWith(`${apiBasePath}/`);
 }
 
-function publicOrigin(req: Request, config: AppConfig): string {
-  if (config.selfUrl) {
-    return config.selfUrl.replace(/\/$/, '');
-  }
-
-  const host = req.get('x-forwarded-host') ?? req.get('host') ?? `localhost:${config.port}`;
-  const proto = req.get('x-forwarded-proto') ?? req.protocol;
-  return `${proto}://${host}`;
+function readReturnToQuery(req: Request): unknown {
+  return req.query.returnTo ?? req.query.return_to;
 }
 
 function escapeHtml(value: string): string {
