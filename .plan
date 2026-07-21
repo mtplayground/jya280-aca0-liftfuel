@@ -1,24 +1,40 @@
-Architecture plan for issues #51-#54
+Architecture plan for issues #59-#61
 
 Scope overview
-- These issues are deployment/web compatibility fixes for the existing LiftFuel Expo web + Express backend app.
-- They should be implemented as small, isolated patches that preserve the existing API contracts and mobile behavior.
+- These issues all address the same auth-login loop in the LiftFuel Expo web/native frontend and Express backend: after returning from the external MCTAI login page, the app should detect the browser cookie-backed session automatically, ensure the session cookie is accepted/sent in deployed browser contexts, and show a clear user-facing reason when session verification fails.
+- Preserve the existing MCTAI `mctai_session` cookie + JWT/JWKS backend auth model. Do not introduce a parallel token or client-managed auth credential.
 
-Module structure and file organization
-- Frontend API URL behavior: keep request URL construction centralized in src/api/client.ts. Web builds should default to the same public origin plus /api when EXPO_PUBLIC_API_BASE_URL is absent; native/local development can continue to use the localhost fallback or explicit env override.
-- Session persistence: keep all persisted auth-session access behind src/features/auth/sessionStorage.ts. Add a platform-aware storage adapter there only, using browser localStorage on web and expo-secure-store on native.
-- Safe-area setup: keep global React providers in App.tsx. Wrap RootNavigator with SafeAreaProvider at the root so every screen and navigation component has safe-area context on web and native.
-- Auth/public origin alignment: keep reverse-proxy/public URL logic in backend/src/app.ts for CORS and backend/src/routes/auth.ts for return_to construction. Shared helper logic should derive public host/proto from X-Forwarded-Host and X-Forwarded-Proto with configured SELF_URL/ALLOWED_CORS_ORIGIN as explicit allowlist fallbacks.
+Module structure, file organization, shared types
+- Frontend session orchestration remains in `src/features/auth/sessionService.ts`:
+  - Keep `refreshSession()` as the single wrapper around `GET /api/auth/me` and local snapshot persistence.
+  - Add small helpers/types here if needed to classify auth refresh outcomes for UI flows, but avoid duplicating network logic in screens.
+- Frontend API error behavior remains centralized in `src/api/client.ts` and `src/api/errorMessages.ts`:
+  - Preserve `credentials: 'include'` on requests so browser cookies are sent.
+  - Keep status/code details on `ApiError` for development diagnostics and map common auth-login-loop failures to short non-technical messages.
+- Auth UI handling belongs in `src/features/auth/screens/SignInScreen.tsx` and `src/features/auth/screens/SignUpScreen.tsx`:
+  - Reuse a shared auto-refresh/check-session pattern between sign-in and sign-up where practical.
+  - Keep the existing manual “Refresh session” button as a fallback.
+  - Trigger session checks after opening auth, when the screen regains focus, when web `document.visibilityState` becomes visible, and when callback/query parameters indicate a return from auth.
+- Root routing remains in `src/navigation/RootNavigator.tsx`:
+  - `onAuthenticated` should remain the boundary that updates root auth/profile state after a successful refresh.
+  - Avoid adding separate navigation states for each auth screen unless needed; keep session/profile decisions centralized.
+- Backend cookie/origin work belongs in `backend/src/auth/session.ts`, `backend/src/routes/auth.ts`, `backend/src/http/origin.ts`, and `backend/src/config.ts`:
+  - Keep public origin resolution proxy-aware using `X-Forwarded-Host` / `X-Forwarded-Proto` before raw `Host`.
+  - If cookie options need to be generated/cleared by this backend, centralize attributes in auth/config helpers so logout clearing matches login/session cookie attributes.
+  - Same-origin deployed web should use host-only cookies with `path=/`, `HttpOnly`, and `Secure` in production. Cross-site cases require `SameSite=None; Secure`; same-origin can remain `Lax` where valid.
+- Documentation/config expectations should be reflected in `.env.example`:
+  - `SELF_URL` and `ALLOWED_CORS_ORIGIN` should match the public app origin in deployment.
+  - For deployed same-origin Expo web + API, leave `EXPO_PUBLIC_API_BASE_URL` unset so frontend requests use `window.location.origin + /api`.
 
 Dependencies between issues
-- #53 (SafeAreaProvider) is independent and should be done before final browser verification because missing safe-area context can blank the web app.
-- #52 (web-compatible session storage) is independent but blocks a stable logged-out web render because expo-secure-store is not fully web-compatible.
-- #51 (live server requests) depends on understanding the final deployed URL shape and should be implemented in the shared API client so all screens benefit.
-- #54 (site/backend URL alignment for auth redirects) should be implemented after or alongside #51 because both rely on correct public origin handling behind Ideavibes' reverse proxy.
+- #60 should be implemented/verified first or alongside the others because no frontend refresh timing can succeed if the browser does not store/send `mctai_session` to `/api/auth/me`.
+- #59 depends on the existing `refreshSession()` and root `onAuthenticated` flow. It can be implemented after #60 assumptions are clear, and should reuse current session snapshot persistence.
+- #61 should be implemented after or alongside #59 so all automatic and manual refresh paths display the same classified failure messages instead of silently returning to the login page.
+- Final validation should exercise all three together: external login return, focused/visible page return, manual refresh fallback, cookie presence on `/api/auth/me`, 401 handling, network/CORS failure, and 503 `AUTH_NOT_CONFIGURED` handling.
 
 Key design decisions
-- Do not hardcode a single deployed hostname into frontend code. Prefer same-origin /api on web, and keep EXPO_PUBLIC_API_BASE_URL as an override.
-- Do not add a second auth/JWT layer. Continue using the existing MCTAI mctai_session cookie flow and backend /api/auth/* routes.
-- Preserve native behavior by branching on Platform.OS === 'web' only where browser APIs are required.
-- CORS/origin checks must be proxy-aware and custom-domain-safe: absent Origin is allowed, same Origin host as X-Forwarded-Host is allowed, and configured allowed origins remain valid.
-- Browser verification should include root render, console/page errors, network failures, and auth UI sanity to catch white-screen regressions.
+- Do not hardcode any deployed hostname; derive public origin from forwarded headers/config and allow same-origin `/api` on web.
+- Keep CORS and origin checks custom-domain/proxy safe: absent Origin is allowed, the public forwarded host is allowed, and configured `SELF_URL`/`ALLOWED_CORS_ORIGIN` hosts are allowed.
+- Do not origin-gate static assets; only API CORS should be checked.
+- Keep auth feedback concise for users but preserve specific `ApiError.status` and `ApiError.code` for logs/development.
+- Avoid broad route rewrites: the likely implementation surface is small and limited to auth/session API helpers, two auth screens, root session refresh integration, and backend cookie/origin configuration docs/helpers.
