@@ -1,4 +1,4 @@
-import { Linking } from 'react-native';
+import { Linking, Platform } from 'react-native';
 
 import { ApiError, apiClient } from '../../api/client';
 import type { AuthSessionResponse, PasswordResetResponse } from '../../api/types';
@@ -19,6 +19,10 @@ export async function startSignIn(returnTo = '/'): Promise<void> {
 
 export async function startSignUp(returnTo = '/'): Promise<void> {
   await Linking.openURL(apiClient.url('/auth/signup', { returnTo }));
+}
+
+export async function hasAuthReturnParameters(): Promise<boolean> {
+  return hasAuthReturnParameter(await readCurrentUrl());
 }
 
 export async function refreshSession(): Promise<AuthSessionResponse | null> {
@@ -47,3 +51,38 @@ export async function requestPasswordReset(
 ): Promise<PasswordResetResponse> {
   return apiClient.post<PasswordResetResponse>('/auth/password-reset', { email, returnTo });
 }
+
+async function readCurrentUrl(): Promise<string | null> {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    return window.location.href;
+  }
+
+  return Linking.getInitialURL();
+}
+
+function hasAuthReturnParameter(url: string | null): boolean {
+  if (!url) return false;
+
+  try {
+    const parsedUrl = new URL(url);
+    return containsAuthReturnParameter(parsedUrl.searchParams)
+      || containsAuthReturnParameter(new URLSearchParams(parsedUrl.hash.replace(/^#/, '')));
+  } catch {
+    return false;
+  }
+}
+
+function containsAuthReturnParameter(params: URLSearchParams): boolean {
+  return authReturnParameterNames.some((name) => params.has(name));
+}
+
+const authReturnParameterNames = [
+  'auth',
+  'code',
+  'error',
+  'error_description',
+  'mctai_session',
+  'session',
+  'session_state',
+  'state'
+];
