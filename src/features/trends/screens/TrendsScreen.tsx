@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
-import { ApiError } from '../../../api/client';
+import { readAppErrorMessage } from '../../../api/errorMessages';
 import type { Goal, PerformanceMetric, ProgressEntry, UserProfile } from '../../../api/types';
 import { AppText, Button, Card, Screen, StatRow } from '../../../components/ui';
 import { colors, radius, spacing } from '../../../theme';
@@ -143,6 +143,15 @@ export function TrendsScreen() {
                 helperText={trendData.performanceSeries ? trendData.performanceSeries.unit : 'Add a metric from Progress'}
               />
             </Card>
+
+            {state.entries.length === 0 ? (
+              <Card style={styles.card}>
+                <AppText variant="heading">No progress entries yet</AppText>
+                <AppText variant="body" tone="muted">
+                  Record weight, body fat, or performance metrics to start charting trends.
+                </AppText>
+              </Card>
+            ) : null}
 
             <TrendChart
               color={colors.chartCalories}
@@ -303,9 +312,7 @@ function formatDate(date: Date): string {
 }
 
 function readErrorMessage(error: unknown, fallback: string): string {
-  if (error instanceof ApiError) return error.message;
-  if (error instanceof Error) return error.message;
-  return fallback;
+  return readAppErrorMessage(error, fallback);
 }
 
 const styles = StyleSheet.create({

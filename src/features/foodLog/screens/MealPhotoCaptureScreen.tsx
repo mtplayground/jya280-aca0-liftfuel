@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Image, ScrollView, StyleSheet, View } from 'react-native';
 
-import { ApiError } from '../../../api/client';
+import { readAppErrorMessage } from '../../../api/errorMessages';
 import type { MealPhotoEstimate } from '../../../api/types';
 import { AppText, Button, Card, Input, Screen, StatRow } from '../../../components/ui';
 import { colors, spacing } from '../../../theme';
@@ -307,9 +307,7 @@ function StatusMessage({
 }
 
 function readErrorMessage(error: unknown, fallback: string): string {
-  if (error instanceof ApiError) return error.message;
-  if (error instanceof Error) return error.message;
-  return fallback;
+  return readAppErrorMessage(error, fallback);
 }
 
 function estimateToForm(estimate: MealPhotoEstimate): EstimateFormState {

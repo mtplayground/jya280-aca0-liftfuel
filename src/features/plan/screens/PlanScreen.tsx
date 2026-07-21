@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
-import { ApiError } from '../../../api/client';
+import { readAppErrorMessage } from '../../../api/errorMessages';
 import type { NutritionPlan, PlanTargetDay, TrainingDayResolution } from '../../../api/types';
 import { AppText, Button, Card, Screen, StatRow } from '../../../components/ui';
 import { colors, radius, spacing } from '../../../theme';
@@ -199,9 +199,7 @@ function formatSplit(split: NutritionPlan['trainingSplit']): string {
 }
 
 function readErrorMessage(error: unknown, fallback: string): string {
-  if (error instanceof ApiError) return error.message;
-  if (error instanceof Error) return error.message;
-  return fallback;
+  return readAppErrorMessage(error, fallback);
 }
 
 const styles = StyleSheet.create({

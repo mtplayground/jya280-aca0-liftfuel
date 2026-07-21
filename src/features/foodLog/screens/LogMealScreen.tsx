@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
-import { ApiError } from '../../../api/client';
+import { readAppErrorMessage } from '../../../api/errorMessages';
 import type {
   FoodEntry,
   FoodEntryInput,
@@ -48,6 +48,7 @@ export function LogMealScreen() {
   const [results, setResults] = useState<FoodItem[]>([]);
   const [savedEntry, setSavedEntry] = useState<FoodEntry | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [isPicking, setIsPicking] = useState<MealPhotoSource | null>(null);
   const [isEstimating, setIsEstimating] = useState(false);
@@ -110,6 +111,8 @@ export function LogMealScreen() {
       setIsEditorOpen(false);
       setSuccess('Estimate ready.');
     } catch (estimateError) {
+      setIsEditorOpen(true);
+      setForm((current) => ({ ...current, source: 'manual' }));
       setError(readErrorMessage(estimateError, 'Unable to estimate the meal photo.'));
     } finally {
       setIsEstimating(false);
@@ -120,6 +123,7 @@ export function LogMealScreen() {
     const trimmedQuery = query.trim();
     if (trimmedQuery.length < 2) {
       setError('Search with at least 2 characters.');
+      setHasSearched(false);
       setResults([]);
       return;
     }
@@ -130,11 +134,13 @@ export function LogMealScreen() {
 
     try {
       const items = await searchFoods(trimmedQuery);
+      setHasSearched(true);
       setResults(items);
       if (items.length === 0) {
         setSuccess('No matching foods found.');
       }
     } catch (searchError) {
+      setHasSearched(false);
       setError(readErrorMessage(searchError, 'Unable to search foods.'));
     } finally {
       setIsSearching(false);
@@ -154,6 +160,7 @@ export function LogMealScreen() {
       source: 'manual'
     }));
     setEstimate(null);
+    setHasSearched(false);
     setIsEditorOpen(true);
     setSuccess(`${item.name} loaded.`);
     setError(null);
@@ -187,10 +194,20 @@ export function LogMealScreen() {
         : await createFoodEntry(payload.input);
 
       if (photo && !entry.photoObjectKey) {
-        await uploadMealPhoto(entry.id, photo);
+        try {
+          const uploadResponse = await uploadMealPhoto(entry.id, photo);
+          setSavedEntry(uploadResponse.entry);
+        } catch (uploadError) {
+          setSavedEntry(entry);
+          setForm((current) => ({ ...current, entryId: entry.id }));
+          setError(readErrorMessage(uploadError, 'Photo upload failed.'));
+          setSuccess('Entry saved without the photo.');
+          return;
+        }
+      } else {
+        setSavedEntry(entry);
       }
 
-      setSavedEntry(entry);
       setSuccess(entryId ? 'Entry updated.' : 'Entry saved.');
       setForm((current) => ({ ...current, entryId: entry.id }));
     } catch (saveError) {
@@ -289,6 +306,7 @@ export function LogMealScreen() {
                 label="Food search"
                 onChangeText={(value) => {
                   setQuery(value);
+                  setHasSearched(false);
                   setError(null);
                   setSuccess(null);
                 }}
@@ -305,6 +323,13 @@ export function LogMealScreen() {
                   {results.map((item) => (
                     <FoodResultRow key={item.id} item={item} onPress={() => selectFood(item)} />
                   ))}
+                </View>
+              ) : hasSearched && query.trim().length >= 2 && !isSearching ? (
+                <View style={styles.emptyPreview}>
+                  <AppText variant="label">No foods found</AppText>
+                  <AppText variant="caption" tone="muted">
+                    Adjust the search or enter the meal values below.
+                  </AppText>
                 </View>
               ) : null}
 
@@ -631,9 +656,7 @@ function formatMealType(mealType: MealType): string {
 }
 
 function readErrorMessage(error: unknown, fallback: string): string {
-  if (error instanceof ApiError) return error.message;
-  if (error instanceof Error) return error.message;
-  return fallback;
+  return readAppErrorMessage(error, fallback);
 }
 
 const styles = StyleSheet.create({
