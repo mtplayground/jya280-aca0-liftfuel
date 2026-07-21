@@ -8,6 +8,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "build": "npm run backend:build && npx expo export --platform web",
     "backend:build": "tsc -p backend/tsconfig.build.json",
     "backend:dev": "tsx backend/src/server.ts",
     "backend:start": "node backend/dist/server.js",

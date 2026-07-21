@@ -53,7 +53,9 @@ function readInteger(env: Env, key: string, fallback: number): number {
 function normalizeBasePath(path: string): string {
   const trimmed = path.trim();
   if (!trimmed || trimmed === '/') return '/api';
-  return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+
+  const withLeadingSlash = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  return withLeadingSlash.replace(/\/+$/, '');
 }
 
 export function loadConfig(env: Env = process.env): AppConfig {
