@@ -1,6 +1,6 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { AppText, Screen } from '../components/ui';
 import {
@@ -15,67 +15,24 @@ import { getProfile, ProfileScreen } from '../features/profile';
 import { PlaceholderScreen } from '../screens/PlaceholderScreen';
 import { colors, navigationTheme, spacing } from '../theme';
 import { AppTabs } from './tabs/AppTabs';
-import type {
-  AppStackParamList,
-  AuthStackParamList,
-  OnboardingStackParamList,
-  SessionState
-} from './types';
+import type { AppStackParamList, SessionState } from './types';
 
 const AppStack = createNativeStackNavigator<AppStackParamList>();
-const AuthStack = createNativeStackNavigator<AuthStackParamList>();
-const OnboardingStack = createNativeStackNavigator<OnboardingStackParamList>();
 
-function AuthNavigator({ onAuthenticated }: { onAuthenticated: () => void }) {
-  return (
-    <AuthStack.Navigator screenOptions={stackScreenOptions}>
-      <AuthStack.Screen name="SignIn" options={{ title: 'Sign in' }}>
-        {(props) => (
-          <SignInScreen
-            {...props}
-            onAuthenticated={onAuthenticated}
-          />
-        )}
-      </AuthStack.Screen>
-      <AuthStack.Screen name="SignUp" options={{ title: 'Create account' }}>
-        {(props) => (
-          <SignUpScreen
-            {...props}
-            onAuthenticated={onAuthenticated}
-          />
-        )}
-      </AuthStack.Screen>
-      <AuthStack.Screen
-        name="PasswordReset"
-        component={PasswordResetScreen}
-        options={{ title: 'Reset access' }}
-      />
-    </AuthStack.Navigator>
-  );
-}
-
-function OnboardingNavigator({ onComplete }: { onComplete: () => void }) {
-  return (
-    <OnboardingStack.Navigator screenOptions={stackScreenOptions}>
-      <OnboardingStack.Screen name="Welcome" options={{ title: 'Set up profile' }}>
-        {() => (
-          <OnboardingFlowScreen
-            onComplete={onComplete}
-          />
-        )}
-      </OnboardingStack.Screen>
-    </OnboardingStack.Navigator>
-  );
-}
-
-function AppNavigator() {
+function AppNavigator({
+  isAuthenticated,
+  onAuthenticated,
+  onOnboardingComplete
+}: {
+  isAuthenticated: boolean;
+  onAuthenticated: () => Promise<void>;
+  onOnboardingComplete: () => void;
+}) {
   return (
     <AppStack.Navigator screenOptions={stackScreenOptions}>
-      <AppStack.Screen
-        name="MainTabs"
-        component={AppTabs}
-        options={{ headerShown: false }}
-      />
+      <AppStack.Screen name="MainTabs" options={{ headerShown: false }}>
+        {() => <AppTabs isAuthenticated={isAuthenticated} />}
+      </AppStack.Screen>
       <AppStack.Screen name="MealDetail" options={{ title: 'Meal detail' }}>
         {() => (
           <PlaceholderScreen
@@ -86,6 +43,41 @@ function AppNavigator() {
       </AppStack.Screen>
       <AppStack.Screen name="Profile" options={{ title: 'Profile' }}>
         {() => <ProfileScreen />}
+      </AppStack.Screen>
+      <AppStack.Screen name="SignIn" options={{ title: 'Sign in' }}>
+        {(props) => (
+          <SignInScreen
+            {...props}
+            onAuthenticated={() => {
+              void onAuthenticated().then(() => props.navigation.navigate('MainTabs'));
+            }}
+          />
+        )}
+      </AppStack.Screen>
+      <AppStack.Screen name="SignUp" options={{ title: 'Create account' }}>
+        {(props) => (
+          <SignUpScreen
+            {...props}
+            onAuthenticated={() => {
+              void onAuthenticated().then(() => props.navigation.navigate('MainTabs'));
+            }}
+          />
+        )}
+      </AppStack.Screen>
+      <AppStack.Screen
+        name="PasswordReset"
+        component={PasswordResetScreen}
+        options={{ title: 'Reset access' }}
+      />
+      <AppStack.Screen name="Onboarding" options={{ title: 'Set up profile' }}>
+        {(props) => (
+          <OnboardingFlowScreen
+            onComplete={() => {
+              onOnboardingComplete();
+              props.navigation.navigate('MainTabs');
+            }}
+          />
+        )}
       </AppStack.Screen>
     </AppStack.Navigator>
   );
@@ -173,24 +165,15 @@ export function RootNavigator() {
     };
   }, []);
 
-  const routeKey = useMemo(() => {
-    if (session.isLoading) return 'loading';
-    if (!session.hasAccount) return 'auth';
-    if (!session.hasCompletedProfile) return 'onboarding';
-    return 'app';
-  }, [session]);
-
   return (
-    <NavigationContainer key={routeKey} theme={navigationTheme}>
+    <NavigationContainer theme={navigationTheme}>
       {session.isLoading ? (
         <LoadingScreen />
-      ) : !session.hasAccount ? (
-        <AuthNavigator
+      ) : (
+        <AppNavigator
+          isAuthenticated={session.hasAccount}
           onAuthenticated={markAuthenticated}
-        />
-      ) : !session.hasCompletedProfile ? (
-        <OnboardingNavigator
-          onComplete={() =>
+          onOnboardingComplete={() =>
             setSession({
               hasAccount: true,
               hasCompletedProfile: true,
@@ -198,8 +181,6 @@ export function RootNavigator() {
             })
           }
         />
-      ) : (
-        <AppNavigator />
       )}
     </NavigationContainer>
   );
