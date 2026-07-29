@@ -1,34 +1,44 @@
-Architecture plan for issues #65-#66
+Architecture plan for issues #69 and #70
 
-Context
-- LiftFuel is an Expo/React Native web + native client with a Node/Express backend.
-- The web app is served by the backend from the built Expo web artifact, and browser API calls use the same-origin /api base by default.
-- Auth is delegated to the pre-provisioned Ideavibes auth service. The app must redirect users to MCTAI_AUTH_URL with app_token=MCTAI_AUTH_APP_TOKEN and a safe return_to value.
+Project shape
+- Expo React Native / React Native Web client at App.tsx and src/**.
+- Express + TypeScript backend under backend/src/**, mounted under /api and serving the exported web build from dist/.
+- Auth is already centralized in src/features/auth/sessionService.ts on the client and backend/src/routes/auth.ts plus backend/src/auth/session.ts on the server.
+- Main app navigation is controlled by src/navigation/RootNavigator.tsx and src/navigation/tabs/AppTabs.tsx.
 
-Module structure and file organization
-- backend/src/config.ts
-  - Central source for deployment configuration: SELF_URL, ALLOWED_CORS_ORIGIN, MCTAI_AUTH_URL, MCTAI_AUTH_APP_TOKEN, MCTAI_AUTH_JWKS_URL, API_BASE_PATH, HOST, PORT.
-  - Keep normalization helpers for URL/base-path values here or in a small HTTP utility module.
-- backend/src/http/origin.ts
-  - Existing shared public-origin / CORS host helper.
-  - For issue #65, auth return URL behavior should intentionally use configured SELF_URL as the canonical frontend origin when present, instead of dynamically deriving a return URL from rewritten proxy headers.
-  - For CORS/origin admission, keep proxy-aware host comparison so custom/public domains and ALLOWED_CORS_ORIGIN remain accepted.
-- backend/src/routes/auth.ts
-  - Owns /auth/login, /auth/signup, /auth/password-reset, and /auth/me behavior under API_BASE_PATH.
-  - Issue #65 should adjust resolveReturnTo/public return URL selection here, preserving the current guard that rejects /api return destinations and off-origin URLs.
-- .env.example
-  - Document exact non-secret deployment env keys required for the production web/auth flow.
-  - Issue #66 should align names and expected values: SELF_URL and ALLOWED_CORS_ORIGIN must both be the public mctai.app site origin; MCTAI_AUTH_* must match the registered Ideavibes auth app; no secrets should be committed.
-- Deployment/runtime notes
-  - The deployed service command should source .env.production and run the compiled backend, after building the Expo web output. No DATABASE_URL or token values should be printed.
+Issue #69: open directly to the main UI without forced login/onboarding
+- Primary module: src/navigation/RootNavigator.tsx.
+- Current behavior gates routing by SessionState: loading -> auth stack -> onboarding stack -> app tabs.
+- Target behavior: app startup should hydrate session in the background but render AppNavigator/MainTabs for guests immediately after the initial check, rather than forcing AuthNavigator or OnboardingNavigator.
+- Keep AuthNavigator and OnboardingFlowScreen available as explicit flows, not startup blockers. Sign-in/sign-up actions should remain callable from empty states or profile/auth entry points.
+- SessionState should continue to track whether a stored/refreshed session exists, but route selection should not require hasAccount or hasCompletedProfile to show the main UI.
+
+Issue #70: unauthenticated pages degrade to empty states, not errors
+- Primary screens/services:
+  - src/features/home/screens/HomeScreen.tsx
+  - src/features/foodLog/screens/LogMealScreen.tsx
+  - src/features/plan/screens/PlanScreen.tsx
+  - src/features/trends/screens/TrendsScreen.tsx
+  - src/features/profile/screens/ProfileScreen.tsx
+  - shared error handling in src/api/errorMessages.ts and/or a small auth-state helper.
+- Current behavior turns 401 UNAUTHENTICATED into generic error UI such as "Sign in again to continue." on data pages.
+- Target behavior: screens that call protected APIs should classify 401/UNAUTHENTICATED as guest/empty state and render useful product UI with a sign-in CTA, not an error card.
+- Mutating actions (save meal, check-in, save profile/progress, upload photo) should block gracefully for guests with a clear sign-in prompt rather than attempting a protected API call and surfacing an error.
+
+Shared types/helpers
+- Prefer a small helper near src/api/errorMessages.ts or src/features/auth/sessionService.ts:
+  - isUnauthenticatedError(error: unknown): boolean
+  - guest empty-state copy and optional sign-in CTA can remain per screen to preserve product-specific language.
+- Avoid pushing auth state into every service response type unless a screen needs richer state. Most services can still throw ApiError; screens decide whether 401 means empty guest state or real error.
 
 Dependencies between issues
-- #65 should be implemented first because it defines the backend's canonical auth return URL behavior.
-- #66 depends on #65's semantics: deployment env documentation and callback registration checks should confirm that SELF_URL/ALLOWED_CORS_ORIGIN values match the canonical return origin used by auth redirects.
+- #69 should land first because it changes the root navigation contract: data screens become visible to guests.
+- #70 depends on #69 exposing those screens while logged out; it then fixes each screen's unauthenticated API failures.
+- Backend auth/session behavior should not change for these issues. Protected API routes may continue returning 401; the frontend handles that response as a guest state.
 
 Key design decisions
-- Use configured SELF_URL as the fixed production return origin for login/signup/password-reset redirects when it is present. This matches the Chinese issue requirement that login redirect return address is fixed to the configured formal site address.
-- Do not point return_to at JSON/API endpoints. Keep fallback return_to as `${SELF_URL}/` and reject paths under API_BASE_PATH.
-- Do not trust raw Host for public browser behavior behind the Ideavibes proxy. Keep CORS proxy-aware via X-Forwarded-Host/X-Forwarded-Proto and configured allowlist.
-- Keep native/mobile client behavior unchanged; these issues target backend deployment/auth URL alignment.
-- Never commit secrets. .env.example should contain placeholders or public non-secret app identifiers only; .env.production remains ignored.
+- Do not remove authentication. The app remains capable of signing in through the configured Ideavibes auth flow.
+- Do not bypass backend authorization. Guest mode is a frontend display mode; protected writes and user-specific reads still require a verified session.
+- Keep onboarding optional after startup. If no profile exists for an authenticated user, data pages can prompt for profile setup without forcing the whole app into onboarding.
+- Keep native/mobile behavior aligned with web: startup should show the same main interface, with guest empty states where user data is unavailable.
+- Preserve existing proxy-aware SELF_URL/CORS/auth redirect behavior from previous issues.
