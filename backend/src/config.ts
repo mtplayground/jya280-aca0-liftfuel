@@ -41,6 +41,15 @@ function readRequiredString(env: Env, key: string): string {
   return value;
 }
 
+function readFirstOptionalString(env: Env, keys: string[]): string | undefined {
+  for (const key of keys) {
+    const value = readOptionalString(env, key);
+    if (value) return value;
+  }
+
+  return undefined;
+}
+
 function readInteger(env: Env, key: string, fallback: number): number {
   const rawValue = readOptionalString(env, key);
   if (!rawValue) return fallback;
@@ -64,6 +73,14 @@ function readBoolean(env: Env, key: string): boolean | undefined {
   throw new Error(`${key} must be a boolean value`);
 }
 
+function readFirstBoolean(env: Env, keys: string[]): boolean | undefined {
+  for (const key of keys) {
+    if (readOptionalString(env, key)) return readBoolean(env, key);
+  }
+
+  return undefined;
+}
+
 function readCookieSameSite(
   env: Env,
   key: string
@@ -77,6 +94,17 @@ function readCookieSameSite(
   }
 
   throw new Error(`${key} must be one of: lax, none, strict`);
+}
+
+function readFirstCookieSameSite(
+  env: Env,
+  keys: string[]
+): AppConfig['authCookieSameSite'] | undefined {
+  for (const key of keys) {
+    if (readOptionalString(env, key)) return readCookieSameSite(env, key);
+  }
+
+  return undefined;
 }
 
 function normalizeBasePath(path: string): string {
@@ -93,16 +121,34 @@ export function loadConfig(env: Env = process.env): AppConfig {
   return {
     apiBasePath: normalizeBasePath(readOptionalString(env, 'API_BASE_PATH') ?? '/api'),
     allowedCorsOrigin: readOptionalString(env, 'ALLOWED_CORS_ORIGIN'),
-    authAppToken: readOptionalString(env, 'MCTAI_AUTH_APP_TOKEN'),
-    authCookieDomain: readOptionalString(env, 'MCTAI_SESSION_COOKIE_DOMAIN'),
-    authCookieSameSite: readCookieSameSite(env, 'MCTAI_SESSION_COOKIE_SAMESITE'),
-    authCookieSecure: readBoolean(env, 'MCTAI_SESSION_COOKIE_SECURE'),
-    authJwksUrl: readOptionalString(env, 'MCTAI_AUTH_JWKS_URL'),
-    authUrl: readOptionalString(env, 'MCTAI_AUTH_URL'),
+    authAppToken: readFirstOptionalString(env, [
+      'IDEAVIBES_AUTH_APP_TOKEN',
+      'MCTAI_AUTH_APP_TOKEN'
+    ]),
+    authCookieDomain: readFirstOptionalString(env, [
+      'IDEAVIBES_SESSION_COOKIE_DOMAIN',
+      'MCTAI_SESSION_COOKIE_DOMAIN'
+    ]),
+    authCookieSameSite: readFirstCookieSameSite(env, [
+      'IDEAVIBES_SESSION_COOKIE_SAMESITE',
+      'MCTAI_SESSION_COOKIE_SAMESITE'
+    ]),
+    authCookieSecure: readFirstBoolean(env, [
+      'IDEAVIBES_SESSION_COOKIE_SECURE',
+      'MCTAI_SESSION_COOKIE_SECURE'
+    ]),
+    authJwksUrl: readFirstOptionalString(env, [
+      'IDEAVIBES_AUTH_JWKS_URL',
+      'MCTAI_AUTH_JWKS_URL'
+    ]),
+    authUrl: readFirstOptionalString(env, ['IDEAVIBES_AUTH_URL', 'MCTAI_AUTH_URL']),
     databaseMaxConnections: readInteger(env, 'DATABASE_MAX_CONNECTIONS', 5),
     databaseUrl: readRequiredString(env, 'DATABASE_URL'),
-    emailAppToken: readOptionalString(env, 'MCTAI_EMAIL_APP_TOKEN'),
-    emailUrl: readOptionalString(env, 'MCTAI_EMAIL_URL'),
+    emailAppToken: readFirstOptionalString(env, [
+      'IDEAVIBES_EMAIL_APP_TOKEN',
+      'MCTAI_EMAIL_APP_TOKEN'
+    ]),
+    emailUrl: readFirstOptionalString(env, ['IDEAVIBES_EMAIL_URL', 'MCTAI_EMAIL_URL']),
     host: readOptionalString(env, 'HOST') ?? '0.0.0.0',
     isProduction: nodeEnv === 'production',
     nodeEnv,
