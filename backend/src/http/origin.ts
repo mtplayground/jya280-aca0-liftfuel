@@ -18,6 +18,12 @@ export function resolvePublicOrigin(req: Request, config: AppConfig): string {
   return `${req.protocol}://${host}`.replace(/\/$/, '');
 }
 
+
+export function resolveAuthReturnOrigin(req: Request, config: AppConfig): string {
+  const configuredSelfOrigin = normalizeConfiguredOrigin(config.selfUrl);
+  return configuredSelfOrigin ?? resolvePublicOrigin(req, config);
+}
+
 export function resolvePublicHost(req: Request, config: AppConfig): string | null {
   return parseOriginHost(resolvePublicOrigin(req, config));
 }
@@ -54,6 +60,17 @@ export function isAllowedBrowserOrigin(
   if (originHost === publicHost) return true;
 
   return configuredOriginHosts(config).has(originHost);
+}
+
+function normalizeConfiguredOrigin(value: string | undefined): string | null {
+  if (!value?.trim()) return null;
+
+  const trimmed = value.trim().replace(/\/$/, '');
+  try {
+    return new URL(trimmed).origin;
+  } catch {
+    return trimmed || null;
+  }
 }
 
 function configuredOriginHosts(config: AppConfig): Set<string> {

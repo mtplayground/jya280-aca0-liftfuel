@@ -12,7 +12,7 @@ import {
 } from '../auth';
 import type { AppConfig } from '../config';
 import { HttpError } from '../errors';
-import { resolvePublicOrigin } from '../http/origin';
+import { resolveAuthReturnOrigin } from '../http/origin';
 import { AccountRepository } from '../repositories';
 import { sendEmail } from '../services';
 
@@ -127,7 +127,7 @@ function parseEmail(value: unknown): string {
 }
 
 function resolveReturnTo(req: Request, config: AppConfig, requested?: unknown): string {
-  const origin = resolvePublicOrigin(req, config);
+  const origin = resolveAuthReturnOrigin(req, config);
   const fallback = `${origin}/`;
 
   if (typeof requested !== 'string' || !requested.trim()) {
