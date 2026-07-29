@@ -18,7 +18,11 @@ export type MainTabParamList = {
 export type AppStackParamList = {
   MainTabs: undefined;
   MealDetail: { mealId: string };
+  Onboarding: undefined;
+  PasswordReset: undefined;
   Profile: undefined;
+  SignIn: undefined;
+  SignUp: undefined;
 };
 
 export type SessionState = {
