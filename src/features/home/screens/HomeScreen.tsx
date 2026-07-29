@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
 
-import { readAppErrorMessage } from '../../../api/errorMessages';
+import { isUnauthenticatedError, readAppErrorMessage } from '../../../api/errorMessages';
 import type { DailyTotalsResponse, StreakSummary } from '../../../api/types';
 import { AppText, Button, Card, Screen, StatRow } from '../../../components/ui';
 import type { MainTabParamList } from '../../../navigation/types';
@@ -18,6 +18,7 @@ import { MacroProgressRow } from '../components/MacroProgressRow';
 type LoadState =
   | { status: 'loading' }
   | { message: string; status: 'error' }
+  | { status: 'guest' }
   | {
       status: 'ready';
       streaks: StreakSummary;
@@ -41,6 +42,11 @@ export function HomeScreen() {
       ]);
       setState({ status: 'ready', streaks, totals });
     } catch (error) {
+      if (isUnauthenticatedError(error)) {
+        setState({ status: 'guest' });
+        return;
+      }
+
       setState({
         message: readErrorMessage(error, 'Unable to load today.'),
         status: 'error'
@@ -69,7 +75,11 @@ export function HomeScreen() {
         : current);
       setCheckInMessage('Check-in saved.');
     } catch (error) {
-      setCheckInMessage(readErrorMessage(error, 'Unable to save check-in.'));
+      setCheckInMessage(
+        isUnauthenticatedError(error)
+          ? 'Sign in to save check-ins and keep your streaks.'
+          : readErrorMessage(error, 'Unable to save check-in.')
+      );
     } finally {
       setIsCheckingIn(false);
     }
@@ -99,6 +109,14 @@ export function HomeScreen() {
         {state.status === 'loading' ? (
           <Card style={styles.card}>
             <AppText variant="heading">Loading daily summary</AppText>
+          </Card>
+        ) : state.status === 'guest' ? (
+          <Card style={styles.card}>
+            <AppText variant="heading">Your daily summary appears after sign-in</AppText>
+            <AppText variant="body" tone="muted">
+              Browse the tabs freely. Sign in from the header when you want to load targets, streaks, and saved meals.
+            </AppText>
+            <Button onPress={goToLog}>Explore meal logging</Button>
           </Card>
         ) : state.status === 'error' ? (
           <Card style={styles.card}>

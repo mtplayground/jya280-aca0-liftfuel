@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
-import { readAppErrorMessage } from '../../../api/errorMessages';
+import { isUnauthenticatedError, readAppErrorMessage } from '../../../api/errorMessages';
 import type { NutritionPlan, PlanTargetDay, TrainingDayResolution } from '../../../api/types';
 import { AppText, Button, Card, Screen, StatRow } from '../../../components/ui';
 import { colors, radius, spacing } from '../../../theme';
@@ -10,6 +10,7 @@ import { getNutritionPlan, getPlanDay } from '../planService';
 type LoadState =
   | { status: 'loading' }
   | { message: string; status: 'error' }
+  | { status: 'guest' }
   | {
       plan: NutritionPlan;
       today: TrainingDayResolution;
@@ -29,6 +30,11 @@ export function PlanScreen() {
       ]);
       setState({ plan, status: 'ready', today });
     } catch (error) {
+      if (isUnauthenticatedError(error)) {
+        setState({ status: 'guest' });
+        return;
+      }
+
       setState({
         message: readErrorMessage(error, 'Unable to load plan targets.'),
         status: 'error'
@@ -50,6 +56,11 @@ export function PlanScreen() {
         }
       } catch (error) {
         if (isActive) {
+          if (isUnauthenticatedError(error)) {
+            setState({ status: 'guest' });
+            return;
+          }
+
           setState({
             message: readErrorMessage(error, 'Unable to load plan targets.'),
             status: 'error'
@@ -78,6 +89,13 @@ export function PlanScreen() {
         {state.status === 'loading' ? (
           <Card style={styles.card}>
             <AppText variant="heading">Loading targets</AppText>
+          </Card>
+        ) : state.status === 'guest' ? (
+          <Card style={styles.card}>
+            <AppText variant="heading">Plan targets unlock after sign-in</AppText>
+            <AppText variant="body" tone="muted">
+              Sign in from the header to calculate personalized training and rest-day targets from your saved profile.
+            </AppText>
           </Card>
         ) : state.status === 'error' ? (
           <Card style={styles.card}>
