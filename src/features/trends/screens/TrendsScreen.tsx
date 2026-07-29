@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
-import { readAppErrorMessage } from '../../../api/errorMessages';
+import { isUnauthenticatedError, readAppErrorMessage } from '../../../api/errorMessages';
 import type { Goal, PerformanceMetric, ProgressEntry, UserProfile } from '../../../api/types';
 import { AppText, Button, Card, Screen, StatRow } from '../../../components/ui';
 import { colors, radius, spacing } from '../../../theme';
@@ -24,6 +24,7 @@ type PerformanceSeries = {
 type LoadState =
   | { status: 'loading' }
   | { message: string; status: 'error' }
+  | { status: 'guest' }
   | {
       entries: ProgressEntry[];
       profile: UserProfile | null;
@@ -59,6 +60,11 @@ export function TrendsScreen() {
         status: 'ready'
       });
     } catch (error) {
+      if (isUnauthenticatedError(error)) {
+        setState({ status: 'guest' });
+        return;
+      }
+
       setState({
         message: readErrorMessage(error, 'Unable to load trends.'),
         status: 'error'
@@ -102,6 +108,13 @@ export function TrendsScreen() {
         {state.status === 'loading' ? (
           <Card style={styles.card}>
             <AppText variant="heading">Loading trends</AppText>
+          </Card>
+        ) : state.status === 'guest' ? (
+          <Card style={styles.card}>
+            <AppText variant="heading">Progress trends appear after sign-in</AppText>
+            <AppText variant="body" tone="muted">
+              Sign in from the header to chart weight, body fat, and performance history.
+            </AppText>
           </Card>
         ) : state.status === 'error' ? (
           <Card style={styles.card}>

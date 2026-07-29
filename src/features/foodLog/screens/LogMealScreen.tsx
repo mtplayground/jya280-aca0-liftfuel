@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
-import { readAppErrorMessage } from '../../../api/errorMessages';
+import { isUnauthenticatedError, readAppErrorMessage } from '../../../api/errorMessages';
 import type {
   FoodEntry,
   FoodEntryInput,
@@ -13,6 +13,7 @@ import type {
 } from '../../../api/types';
 import { AppText, Button, Card, Input, Screen, StatRow } from '../../../components/ui';
 import { colors, radius, spacing } from '../../../theme';
+import { refreshSession } from '../../auth';
 import { createFoodEntry, searchFoods, updateFoodEntry } from '../foodLogService';
 import {
   captureMealPhoto,
@@ -54,6 +55,26 @@ export function LogMealScreen() {
   const [isEstimating, setIsEstimating] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isGuestMode, setIsGuestMode] = useState(false);
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function detectGuestMode() {
+      try {
+        const session = await refreshSession();
+        if (isActive) setIsGuestMode(!session);
+      } catch {
+        if (isActive) setIsGuestMode(false);
+      }
+    }
+
+    detectGuestMode();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   const nutritionPreview = useMemo(() => {
     const calories = readFormNumber(form.caloriesKcal);
@@ -95,6 +116,11 @@ export function LogMealScreen() {
   };
 
   const estimatePhoto = async () => {
+    if (isGuestMode) {
+      promptForSignIn();
+      return;
+    }
+
     if (!photo) {
       setError('Capture or choose a meal photo first.');
       return;
@@ -111,6 +137,12 @@ export function LogMealScreen() {
       setIsEditorOpen(false);
       setSuccess('Estimate ready.');
     } catch (estimateError) {
+      if (isUnauthenticatedError(estimateError)) {
+        setIsGuestMode(true);
+        promptForSignIn();
+        return;
+      }
+
       setIsEditorOpen(true);
       setForm((current) => ({ ...current, source: 'manual' }));
       setError(readErrorMessage(estimateError, 'Unable to estimate the meal photo.'));
@@ -128,6 +160,13 @@ export function LogMealScreen() {
       return;
     }
 
+    if (isGuestMode) {
+      setHasSearched(false);
+      setResults([]);
+      promptForSignIn();
+      return;
+    }
+
     setError(null);
     setSuccess(null);
     setIsSearching(true);
@@ -141,6 +180,13 @@ export function LogMealScreen() {
       }
     } catch (searchError) {
       setHasSearched(false);
+      if (isUnauthenticatedError(searchError)) {
+        setResults([]);
+        setIsGuestMode(true);
+        promptForSignIn();
+        return;
+      }
+
       setError(readErrorMessage(searchError, 'Unable to search foods.'));
     } finally {
       setIsSearching(false);
@@ -177,6 +223,11 @@ export function LogMealScreen() {
   };
 
   const saveEntry = async () => {
+    if (isGuestMode) {
+      promptForSignIn();
+      return;
+    }
+
     const payload = formToPayload(form);
     if (!payload.ok) {
       setError(payload.message);
@@ -200,6 +251,12 @@ export function LogMealScreen() {
         } catch (uploadError) {
           setSavedEntry(entry);
           setForm((current) => ({ ...current, entryId: entry.id }));
+          if (isUnauthenticatedError(uploadError)) {
+            setIsGuestMode(true);
+            promptForSignIn();
+            return;
+          }
+
           setError(readErrorMessage(uploadError, 'Photo upload failed.'));
           setSuccess('Entry saved without the photo.');
           return;
@@ -211,10 +268,21 @@ export function LogMealScreen() {
       setSuccess(entryId ? 'Entry updated.' : 'Entry saved.');
       setForm((current) => ({ ...current, entryId: entry.id }));
     } catch (saveError) {
+      if (isUnauthenticatedError(saveError)) {
+        setIsGuestMode(true);
+        promptForSignIn();
+        return;
+      }
+
       setError(readErrorMessage(saveError, 'Unable to save food entry.'));
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const promptForSignIn = () => {
+    setError(null);
+    setSuccess('Sign in from the header to search foods, estimate photos, and save meal entries.');
   };
 
   return (
@@ -226,6 +294,15 @@ export function LogMealScreen() {
           </AppText>
           <AppText variant="display">Log meal</AppText>
         </View>
+
+        {isGuestMode ? (
+          <Card style={styles.card}>
+            <AppText variant="heading">Meal logging is ready to explore</AppText>
+            <AppText variant="body" tone="muted">
+              You can draft meal details here. Sign in from the header to search foods, estimate photos, and save entries.
+            </AppText>
+          </Card>
+        ) : null}
 
         {error ? <StatusMessage tone="danger" message={error} /> : null}
         {success ? <StatusMessage tone="success" message={success} /> : null}

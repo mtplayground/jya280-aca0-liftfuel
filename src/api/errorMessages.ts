@@ -13,6 +13,19 @@ export type AuthSessionFailure = {
   status: number;
 };
 
+export function isUnauthenticatedError(error: unknown): boolean {
+  return error instanceof ApiError
+    && (
+      error.status === 401
+      || [
+        'INVALID_SESSION',
+        'INVALID_SESSION_CLAIMS',
+        'SESSION_EMAIL_MISSING',
+        'UNAUTHENTICATED'
+      ].includes(error.code)
+    );
+}
+
 export function readAppErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof ApiError) {
     switch (error.code) {
